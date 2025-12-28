@@ -1,0 +1,25 @@
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Elasticsearch connection
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "<REMOVED_DEFAULT_PASSWORD>"
+
+# Monitoring
+monitoring.ui.container.elasticsearch.enabled: true
+
+# Security
+xpack.security.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "<REMOVED_KIBANA_ENCRYPTION_KEY>"
+
+# Reporting  
+xpack.reporting.enabled: true
+xpack.reporting.kibanaServer.hostname: localhost
+
+# Localization
+i18n.locale: "en"
+
+# Logging
+logging.root.level: info
