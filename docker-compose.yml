@@ -214,6 +214,8 @@ services:
     networks:
       - soc-network
     depends_on:
+      #misp-core:
+       # condition: service_healthy
       cassandra:
         condition: service_healthy
       minio:
@@ -258,6 +260,7 @@ services:
   # ===========================================
   shuffle-opensearch:
     image: opensearchproject/opensearch:2.11.0
+    profiles: ["shuffle"]
     container_name: shuffle-opensearch
     hostname: shuffle-opensearch
     environment:
@@ -281,6 +284,7 @@ services:
     restart: unless-stopped
 
   shuffle-frontend:
+    profiles: ["shuffle"]
     image: ghcr.io/shuffle/shuffle-frontend:${SHUFFLE_VERSION}
     container_name: shuffle-frontend
     hostname: shuffle-frontend
@@ -296,6 +300,7 @@ services:
     restart: unless-stopped
 
   shuffle-backend:
+    profiles: ["shuffle"]
     image: ghcr.io/shuffle/shuffle-backend:${SHUFFLE_VERSION}
     container_name: shuffle-backend
     hostname: shuffle-backend
@@ -318,6 +323,7 @@ services:
 
   shuffle-orborus:
     image: ghcr.io/shuffle/shuffle-orborus:${SHUFFLE_VERSION}
+    profiles: ["shuffle"]
     container_name: shuffle-orborus
     hostname: shuffle-orborus
     environment:
@@ -339,7 +345,7 @@ services:
       - shuffle-backend
     restart: unless-stopped
 
-#==========================================
+#=======================================
   # MISP - Threat Intelligence Platform
   # ===========================================
     
@@ -487,8 +493,9 @@ services:
       - ELASTIC_HOST=http://elasticsearch:9200
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=changeme123
-      - THEHIVE_URL=http://thehive:9000/api/alert
-      - THEHIVE_API_KEY=iWtYr7XOrugw5HqUKg4HvXizcL7CV+qD
+      - THEHIVE_URL=http://thehive:9000/api/v1/alert
+      - THEHIVE_API_KEY=KThJbjnBKMWCHWT0MDmmAHvpA9Jlmkx1
+      - THEHIVE_ORG=SOC-LAB
     volumes:
       - elastic-thehive-sync-data:/data
     networks:

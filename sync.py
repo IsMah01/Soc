@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """
 Script de synchronisation Elastic → TheHive
-Simple, robuste, avec gestion des erreurs
+
+- Supporte 2 formats Elastic :
+  1) .siem-signals-default-* (signal.rule.*)
+  2) .alerts-security.alerts-* (kibana.alert.*)
+
+- Évite les doublons via state_file + sourceRef unique
+- Envoie dans une organisation TheHive via header X-Organisation
 """
 
 import os
@@ -17,309 +23,429 @@ from base64 import b64encode
 # CONFIGURATION
 # ============================================================================
 
-# Configuration depuis variables d'environnement
 CONFIG = {
-    'elastic_host': os.getenv('ELASTIC_HOST', 'http://elasticsearch:9200'),
-    'elastic_user': os.getenv('ELASTIC_USER', 'elastic'),
-    'elastic_password': os.getenv('ELASTIC_PASSWORD', 'changeme123'),
-    'thehive_url': os.getenv('THEHIVE_URL', 'http://thehive:9000/api/alert'),
-    'thehive_key': os.getenv('THEHIVE_API_KEY', 'iWtYr7XOrugw5HqUKg4HvXizcL7CV+qD'),
-    'siem_index': '.siem-signals-default-000001',
-    'state_file': '/data/sync_state.json',
-    'check_interval': 30,  # secondes
-    'lookback_minutes': 5   # minutes
+    "elastic_host": os.getenv("ELASTIC_HOST", "http://elasticsearch:9200"),
+    "elastic_user": os.getenv("ELASTIC_USER", "elastic"),
+    "elastic_password": os.getenv("ELASTIC_PASSWORD", "changeme123"),
+
+    # IMPORTANT: /api/v1/alert (pas /api/alert)
+    "thehive_url": os.getenv("THEHIVE_URL", "http://thehive:9000/api/v1/alert"),
+    "thehive_key": os.getenv("THEHIVE_API_KEY", "KThJbjnBKMWCHWT0MDmmAHvpA9Jlmkx1"),
+    "thehive_org": os.getenv("THEHIVE_ORG", "SOC-LAB"),
+
+    # Index Elastic
+    "siem_signals_index": os.getenv("SIEM_SIGNALS_INDEX", ".siem-signals-default-*"),
+    "alerts_security_index": os.getenv("ALERTS_SECURITY_INDEX", ".alerts-security.alerts-*"),
+
+    # State & polling
+    "state_file": "/data/sync_state.json",
+    "check_interval": int(os.getenv("CHECK_INTERVAL", "30")),     # secondes
+    "lookback_minutes": int(os.getenv("LOOKBACK_MINUTES", "5")),  # minutes
+
+    # limites
+    "page_size": int(os.getenv("PAGE_SIZE", "50")),
 }
 
 # ============================================================================
-# FONCTIONS UTILITAIRES
+# UTILITAIRES
 # ============================================================================
 
 def log(msg, level="INFO"):
-    """Logging simple et clair"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] [{level}] {msg}", flush=True)
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{ts}] [{level}] {msg}", flush=True)
 
 def get_elastic_headers():
-    """Headers pour Elastic avec authentification Basic"""
     auth = b64encode(f"{CONFIG['elastic_user']}:{CONFIG['elastic_password']}".encode()).decode()
     return {
-        'Content-Type': 'application/json',
-        'Authorization': f'Basic {auth}'
+        "Content-Type": "application/json",
+        "Authorization": f"Basic {auth}",
     }
 
 def get_thehive_headers():
-    """Headers pour TheHive avec API key"""
-    thehive_key = CONFIG['thehive_key']
+    # TheHive v5: Bearer + X-Organisation (si tu veux SOC-LAB)
     return {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {thehive_key}'
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {CONFIG['thehive_key']}",
+        "X-Organisation": CONFIG["thehive_org"],
     }
 
-def generate_fingerprint(alert):
-    """Générer un fingerprint unique pour éviter les doublons TheHive"""
-    source = alert['_source']
-    rule = source.get('signal', {}).get('rule', {})
-    timestamp = source.get('@timestamp', '')
-    
-    # Créer un hash unique basé sur l'ID, la règle et le timestamp
-    data = f"{alert['_id']}:{rule.get('id', '')}:{timestamp}"
-    return hashlib.md5(data.encode()).hexdigest()[:16]
+def iso_to_ms(iso_ts: str) -> int:
+    try:
+        if not iso_ts:
+            return int(time.time() * 1000)
+        # Supporte Z
+        dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+        return int(dt.timestamp() * 1000)
+    except Exception:
+        return int(time.time() * 1000)
+
+def md5_16(s: str) -> str:
+    return hashlib.md5(s.encode()).hexdigest()[:16]
+
+# ============================================================================
+# ÉTAT (anti-doublons)
+# ============================================================================
 
 def load_state():
-    """Charger l'état des alertes déjà traitées"""
     try:
-        with open(CONFIG['state_file'], 'r') as f:
-            state = json.load(f)
-            processed_ids = set(state.get('processed_ids', []))
-            log(f"État chargé: {len(processed_ids)} alertes déjà traitées")
-            return processed_ids
+        with open(CONFIG["state_file"], "r") as f:
+            st = json.load(f)
+            processed = set(st.get("processed_ids", []))
+            log(f"État chargé: {len(processed)} IDs traités")
+            return processed
     except FileNotFoundError:
-        log("Nouvel état: fichier non trouvé, démarrage à zéro")
-        return set()
-    except json.JSONDecodeError as e:
-        log(f"Erreur lecture état: {e}, démarrage à zéro", "WARNING")
+        log("Nouvel état: aucun fichier, démarrage à zéro")
         return set()
     except Exception as e:
-        log(f"Erreur inattendue lecture état: {e}", "ERROR")
+        log(f"Erreur lecture état: {e} (démarrage à zéro)", "WARNING")
         return set()
 
 def save_state(processed_ids):
-    """Sauvegarder l'état"""
     try:
-        state = {
-            'processed_ids': list(processed_ids),
-            'updated': datetime.now().isoformat(),
-            'total_processed': len(processed_ids)
+        st = {
+            "processed_ids": list(processed_ids),
+            "updated": datetime.now().isoformat(),
+            "total_processed": len(processed_ids),
         }
-        with open(CONFIG['state_file'], 'w') as f:
-            json.dump(state, f, indent=2)
-        log(f"État sauvegardé: {len(processed_ids)} alertes")
+        with open(CONFIG["state_file"], "w") as f:
+            json.dump(st, f, indent=2)
+        log(f"État sauvegardé: {len(processed_ids)} IDs")
     except Exception as e:
         log(f"Erreur sauvegarde état: {e}", "ERROR")
 
+# ============================================================================
+# TESTS CONNEXIONS
+# ============================================================================
+
 def test_connections():
-    """Tester les connexions aux services"""
     log("Test des connexions...")
-    
-    # Test Elasticsearch
+
+    # Elasticsearch
     try:
-        headers = get_elastic_headers()
-        url = f"{CONFIG['elastic_host']}/_cat/health?format=json"
-        resp = requests.get(url, headers=headers, timeout=10)
-        if resp.status_code == 200:
-            health = resp.json()[0]
-            log(f"Elastic: ✓ ({health['status']})")
+        r = requests.get(
+            f"{CONFIG['elastic_host']}/_cat/health?format=json",
+            headers=get_elastic_headers(),
+            timeout=10,
+        )
+        if r.status_code == 200:
+            h = r.json()[0]
+            log(f"Elastic: ✓ ({h.get('status', 'unknown')})")
         else:
-            log(f"Elastic: ✗ HTTP {resp.status_code}", "ERROR")
+            log(f"Elastic: ✗ HTTP {r.status_code} => {r.text[:120]}", "ERROR")
             return False
     except Exception as e:
         log(f"Elastic: ✗ {e}", "ERROR")
         return False
-    
-    # Test TheHive
+
+    # TheHive (endpoint public sans auth : /api/status, mais on teste aussi l’API key)
     try:
-        headers = get_thehive_headers()
-        resp = requests.get(f"{CONFIG['thehive_url']}?range=last5m", headers=headers, timeout=10)
-        if resp.status_code == 200:
-            log("TheHive: ✓")
+        r0 = requests.get("http://thehive:9000/api/status", timeout=10)
+        if r0.status_code == 200:
+            log("TheHive: ✓ (/api/status)")
         else:
-            log(f"TheHive: ✗ HTTP {resp.status_code}", "ERROR")
+            log(f"TheHive: ✗ /api/status HTTP {r0.status_code}", "ERROR")
+            return False
+
+        r = requests.get(
+            "http://thehive:9000/api/v1/user/current",
+            headers=get_thehive_headers(),
+            timeout=10,
+        )
+        if r.status_code == 200:
+            u = r.json()
+            log(f"TheHive API key: ✓ (login={u.get('login')}, org={u.get('defaultOrganisation')})")
+        else:
+            log(f"TheHive API key: ✗ HTTP {r.status_code} => {r.text[:120]}", "ERROR")
             return False
     except Exception as e:
         log(f"TheHive: ✗ {e}", "ERROR")
         return False
-    
+
     return True
 
-def fetch_elastic_alerts():
-    """Récupérer les alertes récentes d'Elastic"""
-    query = {
+# ============================================================================
+# FETCH ELASTIC
+# ============================================================================
+
+def es_search(index: str, query: dict):
+    try:
+        url = f"{CONFIG['elastic_host']}/{index}/_search"
+        r = requests.post(url, headers=get_elastic_headers(), json=query, timeout=20)
+        if r.status_code == 200:
+            data = r.json()
+            hits = data.get("hits", {}).get("hits", [])
+            total = data.get("hits", {}).get("total", {}).get("value", 0)
+            return hits, total, None
+        return [], 0, f"HTTP {r.status_code}: {r.text[:160]}"
+    except Exception as e:
+        return [], 0, str(e)
+
+def fetch_siem_signals():
+    # Pour .siem-signals-default-* : champ signal.rule
+    q = {
         "query": {
             "bool": {
                 "must": [{"exists": {"field": "signal.rule"}}],
-                "filter": [
-                    {
-                        "range": {
-                            "@timestamp": {
-                                "gte": f"now-{CONFIG['lookback_minutes']}m",
-                                "lte": "now"
-                            }
-                        }
-                    }
-                ]
+                "filter": [{
+                    "range": {"@timestamp": {"gte": f"now-{CONFIG['lookback_minutes']}m", "lte": "now"}}
+                }]
             }
         },
         "sort": [{"@timestamp": {"order": "desc"}}],
-        "size": 20  # Réduit pour éviter trop de requêtes
+        "size": CONFIG["page_size"],
     }
-    
-    try:
-        headers = get_elastic_headers()
-        url = f"{CONFIG['elastic_host']}/{CONFIG['siem_index']}/_search"
-        resp = requests.post(url, headers=headers, json=query, timeout=15)
-        
-        if resp.status_code == 200:
-            data = resp.json()
-            alerts = data.get('hits', {}).get('hits', [])
-            total = data.get('hits', {}).get('total', {}).get('value', 0)
-            log(f"Elastic: {len(alerts)} alertes récentes ({total} total)")
-            return alerts
-        else:
-            log(f"Elastic: Erreur HTTP {resp.status_code}", "WARNING")
-            return []
-            
-    except Exception as e:
-        log(f"Elastic: Erreur {e}", "WARNING")
-        return []
+    hits, total, err = es_search(CONFIG["siem_signals_index"], q)
+    if err:
+        log(f"Elastic SIEM signals: {err}", "WARNING")
+    else:
+        log(f"Elastic SIEM signals: {len(hits)} hits ({total} total)")
+    return hits
 
-def create_thehive_alert(elastic_alert, fingerprint):
-    """Créer une alerte TheHive à partir d'une alerte Elastic"""
-    source = elastic_alert['_source']
-    rule = source.get('signal', {}).get('rule', {})
-    alert_id = elastic_alert['_id']
-    
-    # Convertir la date
-    try:
-        timestamp = source['@timestamp']
-        if 'T' in timestamp:
-            date_obj = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            date_ms = int(date_obj.timestamp() * 1000)
-        else:
-            date_ms = int(time.time() * 1000)
-    except:
-        date_ms = int(time.time() * 1000)
-    
-    # Construire l'alerte TheHive avec fingerprint unique
-    return {
-        "type": "elastic_siem",
-        "source": "Elastic Security",
-        "sourceRef": f"{alert_id}:{fingerprint}",  # Unique avec fingerprint
-        "title": rule.get('name', 'Alerte Elastic')[:150],
-        "description": f"""**Alerte Elastic Security**
+def fetch_alerts_security():
+    # Pour .alerts-security.alerts-* : champs kibana.alert.*
+    q = {
+        "query": {
+            "bool": {
+                "filter": [{
+                    "range": {"@timestamp": {"gte": f"now-{CONFIG['lookback_minutes']}m", "lte": "now"}}
+                }]
+            }
+        },
+        "sort": [{"@timestamp": {"order": "desc"}}],
+        "size": CONFIG["page_size"],
+    }
+    hits, total, err = es_search(CONFIG["alerts_security_index"], q)
+    if err:
+        log(f"Elastic alerts-security: {err}", "WARNING")
+    else:
+        log(f"Elastic alerts-security: {len(hits)} hits ({total} total)")
+    return hits
+
+# ============================================================================
+# MAPPING -> THEHIVE ALERT
+# ============================================================================
+
+def detect_kind(es_doc: dict) -> str:
+    src = es_doc.get("_source", {})
+    if "signal" in src and isinstance(src.get("signal"), dict) and src["signal"].get("rule"):
+        return "siem-signals"
+    if "kibana" in src and isinstance(src.get("kibana"), dict) and src["kibana"].get("alert"):
+        return "alerts-security"
+    return "unknown"
+
+def make_fingerprint(es_doc: dict) -> str:
+    src = es_doc.get("_source", {})
+    _id = es_doc.get("_id", "")
+    ts = src.get("@timestamp", "")
+
+    kind = detect_kind(es_doc)
+    if kind == "siem-signals":
+        rule = src.get("signal", {}).get("rule", {})
+        rid = rule.get("id", "") or rule.get("rule_id", "") or rule.get("name", "")
+        base = f"siem:{_id}:{rid}:{ts}"
+        return md5_16(base)
+
+    if kind == "alerts-security":
+        rule_name = src.get("kibana", {}).get("alert", {}).get("rule", {}).get("name", "")
+        rule_uuid = src.get("kibana", {}).get("alert", {}).get("rule", {}).get("uuid", "")
+        base = f"alerts:{_id}:{rule_uuid}:{rule_name}:{ts}"
+        return md5_16(base)
+
+    return md5_16(f"unknown:{_id}:{ts}")
+
+def create_thehive_alert(es_doc: dict, fingerprint: str) -> dict:
+    src = es_doc.get("_source", {})
+    es_id = es_doc.get("_id", "")
+    ts = src.get("@timestamp", "")
+    date_ms = iso_to_ms(ts)
+    kind = detect_kind(es_doc)
+
+    title = "Alerte Elastic"
+    description = ""
+    severity = 2
+
+    if kind == "siem-signals":
+        rule = src.get("signal", {}).get("rule", {}) or {}
+        title = (rule.get("name") or "Alerte Elastic SIEM")[:150]
+        severity = src.get("signal", {}).get("severity", 2) or 2
+        description = f"""**Alerte Elastic (SIEM signals)**
 
 **Règle:** {rule.get('name', 'Inconnu')}
 **Description:** {rule.get('description', 'Pas de description')}
 
 **Détails:**
-- ID Elastic: {alert_id}
-- Timestamp: {source.get('@timestamp', 'Inconnu')}
-- Sévérité: {source.get('signal', {}).get('severity', 2)}
+- Index: {es_doc.get('_index', 'N/A')}
+- ID Elastic: {es_id}
+- Timestamp: {ts}
+- Sévérité: {severity}
 
-**Source:** {CONFIG['elastic_host']}
-**Importé automatiquement le:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}""",
-        "severity": source.get('signal', {}).get('severity', 2),
+**Importé automatiquement le:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+
+        tags = ["elastic", "siem-signals", "auto-import"]
+
+    elif kind == "alerts-security":
+        alert = src.get("kibana", {}).get("alert", {}) or {}
+        rule = alert.get("rule", {}) or {}
+        title = (rule.get("name") or "Alerte Elastic Security")[:150]
+
+        # si pas de severity, on essaie risk_score
+        severity = alert.get("severity")
+        if severity is None:
+            # convertir risk_score en "severity" 1..4 grossièrement
+            rs = alert.get("risk_score")
+            if isinstance(rs, (int, float)):
+                if rs >= 75:
+                    severity = 4
+                elif rs >= 50:
+                    severity = 3
+                elif rs >= 25:
+                    severity = 2
+                else:
+                    severity = 1
+            else:
+                severity = 2
+
+        description = f"""**Alerte Elastic (alerts-security)**
+
+**Règle:** {rule.get('name', 'Inconnu')}
+**UUID:** {rule.get('uuid', 'N/A')}
+
+**Détails:**
+- Index: {es_doc.get('_index', 'N/A')}
+- ID Elastic: {es_id}
+- Timestamp: {ts}
+- Sévérité: {severity}
+
+**Importé automatiquement le:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+
+        tags = ["elastic", "alerts-security", "auto-import"]
+
+    else:
+        tags = ["elastic", "unknown", "auto-import"]
+        description = f"Doc Elastic inconnu. index={es_doc.get('_index')} id={es_id}"
+
+    # sourceRef DOIT être unique dans TheHive
+    source_ref = f"{es_id}:{fingerprint}"
+
+    return {
+        "type": "elastic",
+        "source": "Elastic Security",
+        "sourceRef": source_ref,
+        "title": title,
+        "description": description,
+        "severity": int(severity) if str(severity).isdigit() else 2,
         "date": date_ms,
-        "tags": ["elastic", "security", "auto-import", "siem"],
+        "tags": tags,
         "tlp": 2,
-        "pap": 2
+        "pap": 2,
     }
 
-def send_to_thehive(thehive_alert):
-    """Envoyer une alerte à TheHive"""
+# ============================================================================
+# ENVOI THEHIVE
+# ============================================================================
+
+def send_to_thehive(alert: dict):
     try:
-        headers = get_thehive_headers()
-        resp = requests.post(CONFIG['thehive_url'], headers=headers, json=thehive_alert, timeout=15)
-        
-        if resp.status_code in [200, 201]:
+        r = requests.post(
+            CONFIG["thehive_url"],
+            headers=get_thehive_headers(),
+            json=alert,
+            timeout=20,
+        )
+        if r.status_code in (200, 201):
             return True, None
-        elif resp.status_code == 400:
-            # Analyser l'erreur
-            try:
-                error_data = resp.json()
-                if "already exists" in str(error_data):
-                    return False, "Already exists in TheHive"
-                else:
-                    return False, f"HTTP 400: {error_data.get('message', 'Unknown error')}"
-            except:
-                return False, f"HTTP 400: {resp.text[:100]}"
-        else:
-            return False, f"HTTP {resp.status_code}: {resp.text[:100]}"
-            
+
+        # TheHive renvoie souvent 400 si sourceRef existe déjà
+        if r.status_code == 400:
+            txt = r.text.lower()
+            if "already exists" in txt or "duplicate" in txt or "conflict" in txt:
+                return False, "already exists"
+            return False, f"HTTP 400: {r.text[:200]}"
+
+        return False, f"HTTP {r.status_code}: {r.text[:200]}"
     except Exception as e:
         return False, str(e)
 
 # ============================================================================
-# FONCTION PRINCIPALE
+# MAIN
 # ============================================================================
 
 def main():
-    """Fonction principale"""
     log("=" * 60)
     log("🚀 SYNC ELASTIC → THEHIVE - DÉMARRAGE")
     log("=" * 60)
-    
-    # Afficher la configuration
-    log(f"Configuration:")
-    log(f"  Elastic: {CONFIG['elastic_host']}")
-    log(f"  TheHive: {CONFIG['thehive_url']}")
-    log(f"  Index: {CONFIG['siem_index']}")
-    log(f"  Intervalle: {CONFIG['check_interval']}s")
-    log(f"  Recherche: {CONFIG['lookback_minutes']} minutes")
+    log(f"Elastic: {CONFIG['elastic_host']}")
+    log(f"TheHive: {CONFIG['thehive_url']} (org={CONFIG['thehive_org']})")
+    log(f"Indexes: {CONFIG['siem_signals_index']} + {CONFIG['alerts_security_index']}")
+    log(f"Intervalle: {CONFIG['check_interval']}s | Lookback: {CONFIG['lookback_minutes']}m | Size: {CONFIG['page_size']}")
     log("=" * 60)
-    
-    # Test initial des connexions
+
     if not test_connections():
         log("Connexions échouées. Arrêt.", "ERROR")
         sys.exit(1)
-    
-    # Charger l'état
+
     processed_ids = load_state()
-    
-    # Boucle principale
+
     cycle = 0
     while True:
         cycle += 1
         log(f"Cycle #{cycle} démarré")
-        
+
         try:
-            # Récupérer les alertes récentes
-            alerts = fetch_elastic_alerts()
-            
-            if alerts:
-                new_alerts = 0
-                sent_alerts = 0
-                errors = []
-                
-                for alert in alerts:
-                    alert_id = alert['_id']
-                    fingerprint = generate_fingerprint(alert)
-                    
-                    if alert_id not in processed_ids:
-                        new_alerts += 1
-                        rule_name = alert['_source'].get('signal', {}).get('rule', {}).get('name', 'Inconnu')
-                        
-                        log(f"Nouvelle alerte #{new_alerts}: {rule_name[:60]}")
-                        log(f"  Fingerprint: {fingerprint}")
-                        
-                        # Créer et envoyer l'alerte TheHive
-                        thehive_alert = create_thehive_alert(alert, fingerprint)
-                        success, error = send_to_thehive(thehive_alert)
-                        
-                        if success:
-                            processed_ids.add(alert_id)
-                            sent_alerts += 1
-                            log(f"  ✓ Envoyée à TheHive")
-                        else:
-                            if "already exists" in error:
-                                log(f"  ⏭️  Déjà dans TheHive, ajoutée à l'état")
-                                processed_ids.add(alert_id)  # Marquer comme traitée quand même
-                            else:
-                                log(f"  ✗ Erreur: {error}", "WARNING")
-                                errors.append(error)
-                    else:
-                        # Silencieux pour les doublons
-                        pass
-                
-                # Sauvegarder si changements
-                if new_alerts > 0:
-                    save_state(processed_ids)
-                    log(f"Résumé: {sent_alerts}/{new_alerts} envoyées avec succès")
-                    if errors:
-                        log(f"Erreurs rencontrées: {len(errors)}", "WARNING")
-            
-            else:
+            docs = []
+            docs.extend(fetch_siem_signals())
+            docs.extend(fetch_alerts_security())
+
+            if not docs:
                 log("Aucune nouvelle alerte détectée")
-            
+            else:
+                new_docs = 0
+                sent = 0
+                errs = 0
+
+                for d in docs:
+                    es_id = d.get("_id")
+                    if not es_id:
+                        continue
+
+                    if es_id in processed_ids:
+                        continue
+
+                    new_docs += 1
+                    fp = make_fingerprint(d)
+                    kind = detect_kind(d)
+
+                    # récupérer un nom de règle lisible
+                    src = d.get("_source", {})
+                    if kind == "siem-signals":
+                        rule_name = src.get("signal", {}).get("rule", {}).get("name", "Inconnu")
+                    elif kind == "alerts-security":
+                        rule_name = src.get("kibana", {}).get("alert", {}).get("rule", {}).get("name", "Inconnu")
+                    else:
+                        rule_name = "Inconnu"
+
+                    log(f"Nouvelle alerte: kind={kind} rule={str(rule_name)[:80]}")
+                    log(f"  id={es_id} fp={fp}")
+
+                    th_alert = create_thehive_alert(d, fp)
+                    ok, err = send_to_thehive(th_alert)
+
+                    if ok:
+                        processed_ids.add(es_id)
+                        sent += 1
+                        log("  ✓ Envoyée à TheHive")
+                    else:
+                        if err == "already exists":
+                            processed_ids.add(es_id)
+                            log("  ⏭️  Déjà existante dans TheHive, marquée comme traitée")
+                        else:
+                            errs += 1
+                            log(f"  ✗ Erreur TheHive: {err}", "WARNING")
+
+                if new_docs > 0:
+                    save_state(processed_ids)
+                    log(f"Résumé cycle: {sent}/{new_docs} envoyées | erreurs={errs}")
+
         except KeyboardInterrupt:
             log("Arrêt manuel demandé", "INFO")
             break
@@ -327,14 +453,9 @@ def main():
             log(f"Erreur inattendue: {e}", "ERROR")
             import traceback
             traceback.print_exc()
-        
-        # Attente avant prochain cycle
-        log(f"Attente de {CONFIG['check_interval']} secondes...")
-        time.sleep(CONFIG['check_interval'])
 
-# ============================================================================
-# POINT D'ENTRÉE
-# ============================================================================
+        log(f"Attente de {CONFIG['check_interval']} secondes...")
+        time.sleep(CONFIG["check_interval"])
 
 if __name__ == "__main__":
     try:
