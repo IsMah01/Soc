@@ -17,12 +17,12 @@ volumes:
   shuffle-apps:
   shuffle-files:
   shuffle-database:
-  misp-db-data:
-  misp-redis-data:
-  misp-core-data:
-  misp-core-certs:
-  misp-core-gnupg:
-  elastic-thehive-sync-data:
+ # misp-db-data:
+  #misp-redis-data:
+  #misp-core-data:
+  #misp-core-certs:
+  #misp-core-gnupg:
+  #elastic-thehive-sync-data:
 
 services:
   # ===========================================
@@ -260,7 +260,6 @@ services:
   # ===========================================
   shuffle-opensearch:
     image: opensearchproject/opensearch:2.11.0
-    profiles: ["shuffle"]
     container_name: shuffle-opensearch
     hostname: shuffle-opensearch
     environment:
@@ -284,7 +283,6 @@ services:
     restart: unless-stopped
 
   shuffle-frontend:
-    profiles: ["shuffle"]
     image: ghcr.io/shuffle/shuffle-frontend:${SHUFFLE_VERSION}
     container_name: shuffle-frontend
     hostname: shuffle-frontend
@@ -300,7 +298,6 @@ services:
     restart: unless-stopped
 
   shuffle-backend:
-    profiles: ["shuffle"]
     image: ghcr.io/shuffle/shuffle-backend:${SHUFFLE_VERSION}
     container_name: shuffle-backend
     hostname: shuffle-backend
@@ -323,7 +320,6 @@ services:
 
   shuffle-orborus:
     image: ghcr.io/shuffle/shuffle-orborus:${SHUFFLE_VERSION}
-    profiles: ["shuffle"]
     container_name: shuffle-orborus
     hostname: shuffle-orborus
     environment:
@@ -344,143 +340,8 @@ services:
     depends_on:
       - shuffle-backend
     restart: unless-stopped
-
-#=======================================
-  # MISP - Threat Intelligence Platform
-  # ===========================================
-    
-  misp-db:
-    image: mariadb:10.11
-    container_name: misp-db
-    environment:
-      - MYSQL_DATABASE=misp
-      - MYSQL_USER=misp
-      - MYSQL_PASSWORD=misp123
-      - MYSQL_ROOT_PASSWORD=root123
-    volumes:
-      - misp-db-data:/var/lib/mysql
-    networks:
-      - soc-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
-  misp-redis:
-    image: redis:7-alpine
-    container_name: misp-redis
-    hostname: redis 
-    command: redis-server --requirepass redispassword
-    volumes:
-      - misp-redis-data:/data
-    networks:
-      - soc-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redispassword", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
-  misp-modules:
-    image: ghcr.io/misp/misp-docker/misp-modules:latest
-    container_name: misp-modules
-    environment:
-      - REDIS_BACKEND=misp-redis
-    networks:
-      - soc-network
-    depends_on:
-      misp-redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  misp-core:
-    image: ghcr.io/misp/misp-docker/misp-core:latest
-    container_name: misp-core
-    environment:
-      - MISP_ADMIN_EMAIL=admin@admin.test
-      - MISP_ADMIN_PASSPHRASE=admin
-      - MISP_BASEURL=https://localhost:8443
-      - MISP_EXTERNAL_BASEURL=https://localhost:8443
-      - MISP_RESTCLIENT_BASEURL=https://localhost:8443
-      - MYSQL_HOST=misp-db
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=misp
-      - MYSQL_USER=misp
-      - MYSQL_PASSWORD=misp123
-      # CRITICAL: Change from 'redis' to 'misp-redis'
-      - REDIS_FQDN=misp-redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=redispassword
-      # These ensure Redis settings propagate to all config sections
-      - MISP_REDIS_HOST=misp-redis
-      - MISP_REDIS_PORT=6379
-      - MISP_REDIS_PASSWORD=redispassword
-      - PLUGIN_ZEROMQ_REDIS_HOST=misp-redis
-      - SIMPLEBACKGROUNDJOBS_REDIS_HOST=misp-redis
-      - MISP_MODULES_FQDN=http://misp-modules
-      - TIMEZONE=UTC
-      - PHP_MEMORY_LIMIT=2048M
-      - PHP_MAX_EXECUTION_TIME=600
-      - PHP_UPLOAD_MAX_FILESIZE=50M
-      - PHP_POST_MAX_SIZE=50M
-    volumes:
-      - misp-core-data:/var/www/MISP/app/files
-      - misp-core-certs:/var/www/MISP/app/files/certs
-      - misp-core-gnupg:/var/www/MISP/.gnupg
-      # Re-enable config mount AFTER we have a working config
-      - ./misp/config:/var/www/MISP/app/Config:ro
-    ports:
-      - "8443:443"
-      - "8081:80"
-    networks:
-      - soc-network
-    depends_on:
-      misp-db:
-        condition: service_healthy
-      misp-redis:
-        condition: service_healthy
-      misp-modules:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-k", "-f", "https://localhost/users/login"]
-      interval: 60s
-      timeout: 30s
-      retries: 10
-      start_period: 180s
-    restart: unless-stopped
-
-  misp-init:
-    image: alpine:latest
-    container_name: misp-init
-    volumes:
-      - ./misp/init.sh:/init.sh:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: >
-      sh -c '
-        echo "Waiting for MISP core to be ready..." &&
-        # Wait for MISP
-        until docker exec misp-core curl -k -s https://localhost/users/login > /dev/null 2>&1; do
-          sleep 5
-        done &&
-        
-        echo "Running initialization script..." &&
-        docker exec misp-core sh /init.sh &&
-        
-        echo "Restarting PHP-FPM..." &&
-        docker exec misp-core pkill -USR2 php-fpm &&
-        
-        echo "MISP initialization complete!"
-      '
-    networks:
-      - soc-network
-    depends_on:
-      - misp-core
-    restart: "no"
-
-  # ===========================================
+  
+    # ===========================================
   # ELASTIC-THEHIVE SYNCHRONIZATION SERVICE
   # ===========================================
   elastic-thehive-sync:
