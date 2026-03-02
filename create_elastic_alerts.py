@@ -45,7 +45,8 @@ def create_and_send_alert():
         "test-alerts-2025",
         "security-alerts",
         ".siem-signals-default-000001",
-        ".alerts-security.alerts-default"
+        ".alerts-security.alerts-default",
+        ".siem-signals-default-*"
     ]
     
     for index in indexes:
