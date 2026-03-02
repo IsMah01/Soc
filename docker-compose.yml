@@ -17,12 +17,13 @@ volumes:
   shuffle-apps:
   shuffle-files:
   shuffle-database:
+  portainer_data:
  # misp-db-data:
   #misp-redis-data:
   #misp-core-data:
   #misp-core-certs:
   #misp-core-gnupg:
-  #elastic-thehive-sync-data:
+  elastic-thehive-sync-data:
 
 services:
   # ===========================================
@@ -213,6 +214,11 @@ services:
       - "9000:9000"
     networks:
       - soc-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]  # Fixed healthcheck      interval: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 5
     depends_on:
       #misp-core:
        # condition: service_healthy
@@ -237,7 +243,8 @@ services:
     volumes:
       - ./cortex/config/application.conf:/etc/cortex/application.conf:ro
       - cortex-data:/var/lib/cortex
-      - ./cortex/analyzers:/opt/cortex/analyzers:ro
+      - ./cortex/analyzers/analyzers:/opt/Cortex-Analyzers/analyzers:ro
+      - ./cortex/analyzers/responders:/opt/Cortex-Analyzers/responders:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/cortex-jobs:/var/lib/cortex-jobs
     ports:
@@ -340,8 +347,11 @@ services:
     depends_on:
       - shuffle-backend
     restart: unless-stopped
+
   
-    # ===========================================
+  
+  
+  # ===========================================
   # ELASTIC-THEHIVE SYNCHRONIZATION SERVICE
   # ===========================================
   elastic-thehive-sync:
@@ -355,8 +365,8 @@ services:
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=changeme123
       - THEHIVE_URL=http://thehive:9000/api/v1/alert
-      - THEHIVE_API_KEY=KThJbjnBKMWCHWT0MDmmAHvpA9Jlmkx1
-      - THEHIVE_ORG=SOC-LAB
+      - THEHIVE_API_KEY=B0RcwsY2+fAtZHXKGk4PZfUTBDnF8GVt
+      - THEHIVE_ORG=Soc
     volumes:
       - elastic-thehive-sync-data:/data
     networks:
@@ -365,7 +375,7 @@ services:
       elasticsearch:
         condition: service_healthy
       thehive:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; r=requests.get('http://elasticsearch:9200', auth=('elastic','changeme123'), timeout=5); print(r.status_code)"]
@@ -380,3 +390,20 @@ services:
         max-file: "3"
     stdin_open: false
     tty: false
+
+  # ===========================================
+  # portainer
+  # ===========================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - "9004:9000"
+    networks:
+      - soc-network
+    restart: unless-stopped

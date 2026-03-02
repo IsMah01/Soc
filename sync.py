@@ -29,9 +29,9 @@ CONFIG = {
     "elastic_password": os.getenv("ELASTIC_PASSWORD", "changeme123"),
 
     # IMPORTANT: /api/v1/alert (pas /api/alert)
-    "thehive_url": os.getenv("THEHIVE_URL", "http://thehive:9000/api/v1/alert"),
-    "thehive_key": os.getenv("THEHIVE_API_KEY", "KThJbjnBKMWCHWT0MDmmAHvpA9Jlmkx1"),
-    "thehive_org": os.getenv("THEHIVE_ORG", "SOC-LAB"),
+    "thehive_url": os.getenv("THEHIVE_URL", "http://thehive:9000/api/alert"),
+    "thehive_key": os.getenv("THEHIVE_API_KEY", "B0RcwsY2+fAtZHXKGk4PZfUTBDnF8GVt"),
+    "thehive_org": os.getenv("THEHIVE_ORG", "Soc"),
 
     # Index Elastic
     "siem_signals_index": os.getenv("SIEM_SIGNALS_INDEX", ".siem-signals-default-*"),

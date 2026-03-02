@@ -8,6 +8,14 @@ docker compose logs -f kibana | grep -E "Kibana is now available|ERROR|security_
 
 
 
+# First, you'll need the elastic user password (if you know it)
+# Try this curl command from outside the container (in your Kali terminal)
+curl -X POST "localhost:9200/_security/user/kibana_system/_password" \
+  -H "Content-Type: application/json" \
+  -u elastic:changeme123 \
+  -d '{
+    "password": "changeme123"
+  }'
 
 
 
@@ -49,8 +57,7 @@ docker exec misp-core pkill -USR2 php-fpm
 
 cortex admin : admin/admin
 
-coetex test: test/test  apikey: 6Zifliv4yLlTiYcidFJ6aGls7VF4NbP2
-
+coetex test: test/test  apikey: 3f1NozgftMFq5OIhwDaKsBxg+7fQIMI9
 thehive: test@thehi...../test
 
 
