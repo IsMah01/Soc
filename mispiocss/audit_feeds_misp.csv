@@ -1,0 +1,34 @@
+ID,Nom,Format,Provider,URL,Statut,Nb_IOCs,Detail,Duree_s,Date_test,Recommandation
+1,CIRCL OSINT Feed,misp,CIRCL,https://www.circl.lu/doc/misp/feed-osint/,OK,1500,manifest.json OK (1500 événements),1.36,2026-03-31 09:38:35,Conserver
+2,The Botvrij.eu Data,misp,Botvrij.eu,https://www.botvrij.eu/data/feed-osint/,OK,435,manifest.json OK (435 événements),0.53,2026-03-31 09:38:35,Conserver
+3,abuse.ch URLhaus,misp,abuse.ch,https://urlhaus.abuse.ch/downloads/misp/,OK,1780,manifest.json OK (1780 événements),0.43,2026-03-31 09:38:36,Conserver
+4,abuse.ch ThreatFox,misp,abuse.ch,https://threatfox.abuse.ch/export/misp/,KO,0,HTTP 404,0.81,2026-03-31 09:38:37,Remplacer / Supprimer
+5,abuse.ch MalwareBazaar,misp,abuse.ch,https://bazaar.abuse.ch/export/misp/,KO,0,HTTP 404,0.58,2026-03-31 09:38:38,Remplacer / Supprimer
+6,abuse.ch Feodo Tracker C2,misp,abuse.ch,https://feodotracker.abuse.ch/downloads/misp.json,KO,0,HTTP 404,0.9,2026-03-31 09:38:39,Remplacer / Supprimer
+7,Cisco Talos Intelligence,freetext,Cisco Talos,https://www.talosintelligence.com/documents/ip-blacklist,KO,0,HTTP 404,0.56,2026-03-31 09:38:40,Remplacer / Supprimer
+8,Emerging Threats Compromised IPs,freetext,Emerging Threats,https://rules.emergingthreats.net/blockrules/compromised-ips.txt,OK,629,629 entrées récupérées,1.13,2026-03-31 09:38:42,Conserver
+9,Proofpoint ET Block IPs,freetext,Proofpoint ET,https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt,OK,1578,1578 entrées récupérées,0.84,2026-03-31 09:38:43,Conserver
+10,Spamhaus DROP,freetext,Spamhaus,https://www.spamhaus.org/drop/drop.txt,OK,1552,1552 entrées récupérées,0.33,2026-03-31 09:38:43,Conserver
+11,Spamhaus EDROP,freetext,Spamhaus,https://www.spamhaus.org/drop/edrop.txt,PARTIEL,0,Contenu vide ou non reconnu,0.22,2026-03-31 09:38:44,Vérifier manuellement
+12,FireHOL Level 1,freetext,FireHOL,https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset,KO,0,Connexion refusée,60.23,2026-03-31 09:39:44,Remplacer / Supprimer
+13,FireHOL Level 2,freetext,FireHOL,https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset,KO,0,Connexion refusée,60.08,2026-03-31 09:40:45,Remplacer / Supprimer
+14,IPsum Level 3,freetext,IPsum,https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt,KO,0,Connexion refusée,60.09,2026-03-31 09:41:45,Remplacer / Supprimer
+15,OpenPhish,freetext,OpenPhish,https://openphish.com/feed.txt,KO,0,Connexion refusée,60.68,2026-03-31 09:42:46,Remplacer / Supprimer
+16,Digital Side Threat Intel,misp,Digital Side,https://osint.digitalside.it/Threat-Intel/digitalside-misp-feed/,KO,0,Connexion refusée,30.51,2026-03-31 09:43:17,Remplacer / Supprimer
+17,Tor Exit Nodes,freetext,dan.me.uk,https://www.dan.me.uk/torlist/?exit,OK,2120,2120 entrées récupérées,0.5,2026-03-31 09:43:18,Conserver
+18,Blocklist.de All Attacks,freetext,Blocklist.de,https://lists.blocklist.de/lists/all.txt,OK,22329,22329 entrées récupérées,0.35,2026-03-31 09:43:18,Conserver
+19,Blocklist.de SSH,freetext,Blocklist.de,https://lists.blocklist.de/lists/ssh.txt,OK,4540,4540 entrées récupérées,0.28,2026-03-31 09:43:19,Conserver
+20,Blocklist.de RDP,freetext,Blocklist.de,https://lists.blocklist.de/lists/rdp.txt,KO,0,HTTP 404,0.38,2026-03-31 09:43:20,Remplacer / Supprimer
+21,ESET Malware IOC,misp,ESET,https://raw.githubusercontent.com/eset/malware-ioc/master/,KO,0,Connexion refusée,120.17,2026-03-31 09:45:20,Remplacer / Supprimer
+22,ViriBack C2 Tracker,misp,ViriBack,https://raw.githubusercontent.com/viriback/tracker/master/,KO,0,Connexion refusée,120.19,2026-03-31 09:47:21,Remplacer / Supprimer
+23,Unit42 Ransomware IOCs,misp,Palo Alto Unit42,https://raw.githubusercontent.com/pan-unit42/iocs/master/,KO,0,Connexion refusée,120.17,2026-03-31 09:49:21,Remplacer / Supprimer
+24,CISA Known Exploited Vulns,freetext,CISA,https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json,OK,23091,23091 entrées récupérées,0.55,2026-03-31 09:49:22,Conserver
+25,NCC Group Cyber Defence,misp,NCC Group,https://raw.githubusercontent.com/nccgroup/Cyber-Defence/master/,KO,0,Connexion refusée,120.19,2026-03-31 09:51:23,Remplacer / Supprimer
+26,Magecart IOCs Retail,freetext,Community,https://raw.githubusercontent.com/unmanarc/magecart-iocs/main/,KO,0,Connexion refusée,60.09,2026-03-31 09:52:23,Remplacer / Supprimer
+27,TweetFeed URLs,freetext,TweetFeed,https://api.tweetfeed.live/v1/month/urls,OK,1,1 entrées récupérées,0.87,2026-03-31 09:52:24,Conserver
+28,TweetFeed IPs,freetext,TweetFeed,https://api.tweetfeed.live/v1/month/ip,OK,5669,5669 entrées récupérées,0.52,2026-03-31 09:52:25,Conserver
+29,TweetFeed Hashes,freetext,TweetFeed,https://api.tweetfeed.live/v1/month/sha256,OK,377,377 entrées récupérées,0.49,2026-03-31 09:52:26,Conserver
+30,C2IntelFeeds IPs,freetext,drb-ra,https://raw.githubusercontent.com/drb-ra/C2IntelFeeds/master/feeds/IPC2s.csv,KO,0,Connexion refusée,60.08,2026-03-31 09:53:26,Remplacer / Supprimer
+31,Cyber Cure IPs,freetext,CyberCure,https://www.cybercure.ai/feeds/ips.txt,KO,0,HTTP 404,0.57,2026-03-31 09:53:27,Remplacer / Supprimer
+32,Cyber Cure Hashes,freetext,CyberCure,https://www.cybercure.ai/feeds/hash.txt,KO,0,HTTP 404,1.58,2026-03-31 09:53:29,Remplacer / Supprimer
+33,VX Vault URLs,freetext,VX Vault,http://vxvault.net/URL_List.php,OK,105,105 entrées récupérées,1.1,2026-03-31 09:53:30,Conserver
