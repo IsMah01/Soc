@@ -116,3 +116,19 @@ docker exec elasticsearch curl -u elastic:changeme123 -X PUT "localhost:9200/.ki
 # 5. Verify fix
 sleep 3
 docker exec elasticsearch curl -u elastic:changeme123 -s "localhost:9200/_cluster/health?pretty"
+
+
+misp passwor; Admin@12misp
+iMvI3fUlWLY01OQz4Qk6X6ZLTQcQVl6dGXsVwc5w
+
+
+
+http://localhost:3001/api/v1/hooks/webhook_58b19fe6-5ee2-446a-8095-3215c798d1cc
+
+
+
+
+kj54yh7t9y0cpkNsgQpptmH90tNdhb
+
+Htwhb57Hg5q7HNw1w7rh36q8pQ5zcG
+

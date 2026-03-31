@@ -1,0 +1,256 @@
+🧠 TEMPLATE PARFAIT D’UN USE CASE SOC
+
+👉 Cette structure intègre :
+
+technique (SIEM / logs)
+
+standards (MITRE, NIST, ISO)
+
+automatisation (SOAR)
+
+📄 1. Identification
+
+ID : UC-XXX
+
+Nom : (ex: SSH Brute Force Detection)
+
+Catégorie : (Network / System / Threat Intel / Endpoint)
+
+Criticité : (Low / Medium / High / Critical)
+
+🎯 2. Objectif
+
+Décrire clairement :
+
+Quel problème tu résous ?
+Quel risque tu réduis ?
+
+🧠 3. Mapping MITRE ATT&CK
+
+Utiliser : MITRE ATT&CK
+
+Txxxx – Nom de la technique
+
+(optionnel) Tactical : Initial Access / Persistence / etc.
+
+🏛️ 4. Mapping NIST CSF
+
+Utiliser : NIST Cybersecurity Framework
+
+Detect (DE.xxx)
+
+Respond (RS.xxx)
+
+🚨 5. Mapping NIST Incident Response
+
+Utiliser : NIST SP 800-61
+
+Phase	Implémentation
+Preparation	
+Detection & Analysis	
+Containment	
+Eradication	
+Recovery	
+Post-Incident	
+🛡️ 6. Mapping ISO 27001
+
+Utiliser : ISO/IEC 27001
+
+A.12.4.1 – Event logging
+
+A.16.1.2 – Incident reporting
+
+etc.
+
+📥 7. Sources de logs
+
+Linux logs (auth.log, syslog)
+
+Firewall logs
+
+IDS/IPS (Suricata)
+
+⚙️ 8. Pipeline technique
+
+Décrire ton flow :(BPMN)
+
+Source logs → Filebeat → Logstash → Elasticsearch → Kibana
+
+🔍 9. Règle de détection
+
+Condition (ex: 5 tentatives échouées)
+
+Requête (KQL / Lucene)
+
+🚨 10. Alerte
+
+Type : threshold / anomaly
+
+Niveau : High / Critical
+
+🤖 11. Playbook SOAR (Shuffle)
+
+Décrire le workflow :(BPMN)
+
+Trigger → Analyse → Décision → Action
+
+🔬 12. Enrichissement
+
+Cortex (VirusTotal, AbuseIPDB)
+
+MISP lookup
+
+⚔️ 13. Réponse (Response)
+
+Blocage IP
+
+Création case TheHive
+
+Notification
+
+🧪 14. Simulation
+
+Commandes utilisées pour tester
+
+📊 15. KPI / Metrics
+
+nombre d’alertes
+
+temps de réponse
+
+taux de faux positifs
+
+⚠️ 16. Limites
+
+faux positifs
+
+dépendance logs
+
+contournement possible
+
+
+
+--------------------------------------------------------------------------------------------------
+
+
+🏆 TEMPLATE FINAL – USE CASE SOC (VERSION OPTIMISÉE PFE)
+📄 1. Identification
+ID : UC-XXX
+Nom : (ex: SSH Brute Force Detection)
+Catégorie : Network / System / Endpoint / Threat Intel
+Criticité : Low / Medium / High / Critical
+🎯 2. Objectif
+
+Décrire clairement :
+
+Quel problème est détecté ?
+Quel risque est réduit ?
+
+👉 Exemple :
+
+Détecter des tentatives de brute force afin de prévenir la compromission de comptes systèmes.
+
+🧠 3. Contexte métier (IMPORTANT – Retail)
+
+👉 C’est CE QUI FAIT LA DIFFÉRENCE
+
+Pourquoi ce use case est critique pour le retail ?
+Quel système est impacté ? (POS, serveur, admin…)
+
+👉 Exemple :
+
+Une compromission peut impacter les systèmes de caisse (POS) et exposer des données sensibles clients.
+
+🧪 4. Hypothèse de détection
+
+👉 Comment l’attaque se manifeste ?
+
+Ex :
+
+Un attaquant effectue plusieurs tentatives de connexion échouées en un temps court depuis une même adresse IP.
+
+🎯 5. Mapping MITRE ATT&CK
+Technique : T1110 – Brute Force
+Tactique : Credential Access
+
+👉 (reste simple, 1–2 mappings max)
+
+📥 6. Sources de logs
+Linux : auth.log
+Windows : Event ID 4625
+Firewall / VPN logs
+IDS (optionnel)
+⚙️ 7. Logique de détection (LE PLUS IMPORTANT)
+
+👉 Cœur SIEM
+
+Décrire CLAIREMENT :
+
+condition
+seuil
+fenêtre temporelle
+
+Ex :
+
+SI
+  nombre de tentatives échouées ≥ 5
+  FROM même IP
+  DANS 2 minutes
+ALORS alerte
+
+🔍 8. Requête SIEM
+
+👉 KQL / Lucene (ELK)
+
+Ex :
+
+event.action: "login_failed" AND source.ip: *
+
+
+(+ agrégation si nécessaire)
+
+🚨 9. Alerte
+Type : Threshold
+Niveau : High
+Trigger : condition atteinte
+🤖 10. Playbook SOAR (Shuffle)
+
+👉 Décrire le workflow :
+
+1. Réception alerte SIEM
+2. Extraction IP
+3. Enrichissement (MISP / VirusTotal)
+4. Décision (malveillant ou non)
+5. Action :
+   - créer incident
+   - notifier
+   - bloquer IP
+
+🔬 11. Enrichissement
+MISP → réputation IP
+Cortex → analyzers
+⚔️ 12. Réponse (Response)
+Blocage IP (firewall)
+Création incident dans TheHive
+Notification SOC
+🧪 13. Simulation / Test
+
+👉 TRÈS IMPORTANT POUR PFE
+
+Outil utilisé : hydra / nmap / script
+Commande :
+hydra -l admin -P passwords.txt ssh://target
+
+Résultat attendu :
+logs générés
+alerte déclenchée
+playbook exécuté
+📊 14. KPI / Metrics
+Nombre d’alertes générées
+Temps de détection (MTTD)
+Temps de réponse (MTTR)
+Taux de faux positifs
+⚠️ 15. Limites
+faux positifs possibles
+dépendance à la qualité des logs
+contournement possible (slow brute force)
