@@ -1,74 +1,66 @@
-# Mini SOC Lab
+# SOC Lab Platform
 
-A Docker-based SOC lab that combines Elastic Stack, TheHive, Cortex, MISP, Shuffle, and an AI-assisted SOC alert analysis worker. The project is built for local security monitoring demos, alert generation, Elastic-to-TheHive synchronization, enrichment with Cortex analyzers, and AI-generated investigation reports.
+Local SOC lab based on Docker Compose. It combines Elastic Stack, TheHive, Cortex, MISP, Shuffle, and an AI SOC assistant that can analyze alerts and write investigation reports back to TheHive.
 
-## Contents
+## Overview
 
-- [Architecture](#architecture)
-- [Main Services](#main-services)
-- [Repository Layout](#repository-layout)
-- [Requirements](#requirements)
-- [Configuration](#configuration)
-- [Quick Start](#quick-start)
-- [Common Operations](#common-operations)
-- [AI SOC Assistant](#ai-soc-assistant)
-- [Detection and Test Data Scripts](#detection-and-test-data-scripts)
-- [Generated Outputs](#generated-outputs)
-- [Security Notes](#security-notes)
-- [Troubleshooting](#troubleshooting)
+This project is designed for security monitoring demos, alert investigation, threat intelligence enrichment, and SOC automation testing.
 
-## Architecture
+Main workflow:
 
-The lab runs as one Docker Compose environment on the `soc-network` bridge network.
+1. Logs or simulated events are sent to Elasticsearch.
+2. Elastic/Kibana detection rules generate alerts.
+3. `elastic-thehive-sync` reads Elastic alerts and creates TheHive alerts.
+4. Cortex analyzers enrich observables such as IPs, URLs, domains, and hostnames.
+5. `ai-soc-automation` collects the alert, observables, and enrichment results.
+6. The AI assistant selects the right playbook, generates a SOC report, and adds it as a TheHive comment.
 
-Typical flow:
+## Stack
 
-1. Logs or test events are indexed into Elasticsearch.
-2. Elastic Security rules create alerts.
-3. `elastic-thehive-sync` polls Elastic alert indices and creates TheHive alerts.
-4. TheHive stores and manages investigations.
-5. Cortex runs analyzers against alert observables.
-6. `ai-soc-automation` polls new TheHive alerts, collects observables and enrichment reports, selects a SOC playbook, sends the prompt to an LLM, writes a Markdown report, and comments back on the TheHive alert.
-
-## Main Services
-
-| Service | Purpose | Local URL / Port |
+| Component | Role | URL / Port |
 | --- | --- | --- |
-| Elasticsearch | Search and alert data store | `http://localhost:9200` |
+| Elasticsearch | Event and alert storage | `http://localhost:9200` |
 | Kibana | Elastic UI and detection rules | `http://localhost:5601` |
-| Logstash | Log ingestion pipelines | `5044`, `5000`, `9600` |
-| TheHive | Case and alert management | `http://localhost:9000` |
-| Cortex | Analyzer and responder engine | `http://localhost:9001` |
-| MinIO | Object storage used by TheHive | `http://localhost:9003` |
-| Shuffle | SOAR automation platform | `http://localhost:3001` |
-| MISP | Threat intelligence platform | `https://localhost:8443` |
-| Portainer | Docker management UI | `http://localhost:9004` |
-| elastic-thehive-sync | Elastic alert to TheHive sync worker | container only |
-| ai-soc-automation | AI analysis and TheHive comment worker | container only |
+| Logstash | Log ingestion | `5044`, `5000`, `9600` |
+| TheHive | Alert and case management | `http://localhost:9000` |
+| Cortex | Observable enrichment | `http://localhost:9001` |
+| MISP | Threat intelligence | `https://localhost:8443` |
+| Shuffle | SOAR workflows | `http://localhost:3001` |
+| MinIO | TheHive object storage | `http://localhost:9003` |
+| Portainer | Docker management | `http://localhost:9004` |
 
-## Repository Layout
+## Repository Structure
 
 ```text
 .
-├── docker-compose.yml              # Full SOC lab stack
-├── .env                            # Local runtime configuration and secrets
-├── Dockerfile.sync                 # Elastic -> TheHive sync worker image
-├── Dockerfile.ai-soc-assistant     # AI SOC automation worker image
-├── sync.py                         # Elastic alert polling and TheHive alert creation
+├── docker-compose.yml
+├── Dockerfile.sync
+├── Dockerfile.ai-soc-assistant
+├── sync.py
+├── create_elastic_alerts.py
+├── mini_soc_alert_generator.py
+├── logs.py
+├── misp.py
 ├── ai-soc-assistant/
-│   ├── app.py                      # Manual AI alert analysis CLI
-│   ├── auto_worker.py              # Automated TheHive/Cortex/LLM worker
-│   ├── config.py                   # Environment-based configuration
-│   ├── playbooks/                  # SOC playbook definitions
-│   ├── prompts/                    # LLM prompt template
-│   ├── rules/                      # Elastic detection rule JSON files
-│   ├── samples/                    # Sample alert payloads
-│   └── outputs/                    # Generated prompts and reports
+│   ├── app.py
+│   ├── auto_worker.py
+│   ├── config.py
+│   ├── cortex_client.py
+│   ├── llm_client.py
+│   ├── observable_extractor.py
+│   ├── playbook_selector.py
+│   ├── report_writer.py
+│   ├── thehive_client.py
+│   ├── playbooks/
+│   ├── prompts/
+│   ├── rules/
+│   ├── samples/
+│   └── outputs/
 ├── scripts/
-│   ├── send_ssh_bruteforce_logs.py
+│   ├── create_direct_o365_signal_alert.py
 │   ├── inject_o365_mass_sharing_events.py
-│   ├── upsert_o365_elastic_rule.py
-│   └── create_direct_o365_signal_alert.py
+│   ├── send_ssh_bruteforce_logs.py
+│   └── upsert_o365_elastic_rule.py
 ├── elasticsearch/config/
 ├── kibana/config/
 ├── logstash/config/
@@ -76,30 +68,22 @@ Typical flow:
 ├── thehive/config/
 ├── cortex/config/
 ├── cortex/analyzers/
-├── misp/config/
-├── rapport/                        # Project report sources and exported PDFs
-└── prez/                           # Presentation sources and exported PDF
+└── misp/config/
 ```
+
+Generated reports, presentation files, caches, local logs, and secrets are intentionally excluded from Git.
 
 ## Requirements
 
-- Docker and Docker Compose
-- Python 3.11+ for running local helper scripts
-- Enough memory for Elastic, TheHive, Cortex, MISP, and Shuffle together
-- Network access to pull Docker images on first startup
+- Docker
+- Docker Compose
+- Python 3.11 or newer for helper scripts
+- Enough RAM to run Elastic, TheHive, Cortex, MISP, and Shuffle together
 - An LLM API key for AI analysis
-
-For local Python script usage:
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -r ai-soc-assistant/requirements.txt
-```
 
 ## Configuration
 
-The root `.env` file controls Docker Compose and worker settings. Keep it local and do not commit real secrets.
+Create or update the root `.env` file with local values. Do not commit real secrets.
 
 Important variables:
 
@@ -110,71 +94,47 @@ ELASTIC_MEMORY
 THEHIVE_VERSION
 THEHIVE_SECRET
 THEHIVE_API_KEY
+CORTEX_URL
+CORTEX_API_KEY
 LLM_PROVIDER
 LLM_BASE_URL
 LLM_MODEL
 LLM_API_KEY
-CORTEX_URL
-CORTEX_API_KEY
 AUTO_POLL_INTERVAL
 AUTO_ALERT_RANGE
-AUTO_ANALYZER_WAIT_SECONDS
-AUTO_ANALYZER_POLL_SECONDS
-AUTO_PROCESS_EXISTING
 AUTO_ANALYZER_NAMES
 CASSANDRA_VERSION
 MINIO_ROOT_USER
 MINIO_ROOT_PASSWORD
 REDIS_PASSWORD
 SHUFFLE_VERSION
-SHUFFLE_OPENSEARCH_PASSWORD
 NETWORK_SUBNET
 TZ
 ```
 
-The AI assistant also includes `ai-soc-assistant/.env.example` for standalone CLI runs.
+For standalone AI assistant usage, use:
+
+```text
+ai-soc-assistant/.env.example
+```
+
+as the template for your local environment values.
 
 ## Quick Start
 
-Start the full stack:
+Start the lab:
 
 ```bash
 docker compose up -d --build
 ```
 
-Check service status:
+Check containers:
 
 ```bash
 docker compose ps
 ```
 
-Follow logs for the sync worker:
-
-```bash
-docker logs -f elastic-thehive-sync
-```
-
-Follow logs for the AI automation worker:
-
-```bash
-docker logs -f ai-soc-automation
-```
-
-Stop the stack:
-
-```bash
-docker compose down
-```
-
-Stop the stack and remove named volumes:
-
-```bash
-docker compose down -v
-```
-
-## Common Operations
-
-Open the main UIs:
+Open the main interfaces:
 
 - Kibana: `http://localhost:5601`
 - TheHive: `http://localhost:9000`
@@ -183,30 +143,36 @@ Open the main UIs:
 - MISP: `https://localhost:8443`
 - Portainer: `http://localhost:9004`
 
-Rebuild only the AI automation worker:
+Stop the lab:
 
 ```bash
-docker compose build ai-soc-automation
-docker compose up -d ai-soc-automation
+docker compose down
 ```
 
-Rebuild only the Elastic-to-TheHive sync worker:
+Remove containers and volumes:
 
 ```bash
-docker compose build elastic-thehive-sync
-docker compose up -d elastic-thehive-sync
+docker compose down -v
 ```
 
 ## AI SOC Assistant
 
-Manual sample analysis:
+Install local Python dependencies:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r ai-soc-assistant/requirements.txt
+```
+
+Analyze a sample alert:
 
 ```bash
 cd ai-soc-assistant
 python app.py --sample samples/sample_sql_injection_alert.json
 ```
 
-Show the prompt without calling the LLM:
+Preview the LLM prompt without calling the model:
 
 ```bash
 cd ai-soc-assistant
@@ -220,25 +186,25 @@ cd ai-soc-assistant
 python app.py --alert-id '~123456789'
 ```
 
-Analyze a TheHive alert and write the report back as a comment:
+Analyze a TheHive alert and write the result back:
 
 ```bash
 cd ai-soc-assistant
 python app.py --alert-id '~123456789' --write-back
 ```
 
-Run one automation cycle locally:
+Run one automation cycle:
 
 ```bash
 cd ai-soc-assistant
 python auto_worker.py --once
 ```
 
-The automated container runs `auto_worker.py` continuously by default.
+The Docker service `ai-soc-automation` runs the worker continuously.
 
-## Detection and Test Data Scripts
+## Useful Scripts
 
-Create or update the Office 365 mass sharing detection rule in Kibana:
+Create or update the tuned Office 365 mass sharing Elastic rule:
 
 ```bash
 python scripts/upsert_o365_elastic_rule.py --profile tuned
@@ -250,92 +216,119 @@ Push the before-tuning version of the same rule:
 python scripts/upsert_o365_elastic_rule.py --profile before-tuning
 ```
 
-Inject SSH brute force test logs:
+Send SSH brute force test logs:
 
 ```bash
 python scripts/send_ssh_bruteforce_logs.py
 ```
 
-Generate richer Mini SOC test events:
+Generate Mini SOC test events:
 
 ```bash
 python mini_soc_alert_generator.py --help
 ```
 
-Create a simple Elastic alert document:
+Create a direct test alert in Elastic:
 
 ```bash
 python create_elastic_alerts.py
 ```
 
-## Generated Outputs
+## Logs
 
-The AI assistant writes generated prompts and reports to:
+Sync worker:
+
+```bash
+docker logs -f elastic-thehive-sync
+```
+
+AI automation worker:
+
+```bash
+docker logs -f ai-soc-automation
+```
+
+Elasticsearch:
+
+```bash
+docker logs -f elasticsearch
+```
+
+TheHive:
+
+```bash
+docker logs -f thehive
+```
+
+## Outputs
+
+AI-generated files are written to:
 
 ```text
 ai-soc-assistant/outputs/
 ```
 
-Typical files:
+Common output files:
 
 - `*_prompt.txt`
 - `*_ai_report.md`
 - `*_playbook_not_found.md`
 - `automation_state.json`
 
-The container mounts this directory so generated reports persist on the host.
+Only `ai-soc-assistant/outputs/README.md` is kept in Git. Runtime output files are ignored.
 
 ## Security Notes
 
-- This is a local lab project, not a production deployment.
-- Rotate all default passwords, API keys, encryption keys, and MISP credentials before using it outside a private test machine.
-- The compose stack mounts the Docker socket for Cortex, Shuffle, Portainer, and MISP initialization. Treat those containers as highly privileged.
-- Do not commit `.env`, generated reports containing sensitive alert data, API tokens, or organization-specific threat intelligence.
-- Several scripts use local default credentials for convenience. Replace them with environment variables or secret management before wider use.
+- This is a lab environment, not a hardened production deployment.
+- Rotate all default passwords and API keys before using it outside a private machine.
+- Keep `.env` private.
+- Do not commit generated alert reports if they contain sensitive data.
+- Several services mount the Docker socket. Treat those containers as privileged.
+- Review hardcoded demo credentials before sharing or deploying the stack.
 
 ## Troubleshooting
 
-If Elasticsearch does not start, increase Docker memory and check:
+Check the full stack:
 
 ```bash
-docker logs elasticsearch
+docker compose ps
 ```
 
-If Kibana cannot connect, verify Elasticsearch health:
+Check Elasticsearch health:
 
 ```bash
 curl -u elastic:$ELASTIC_PASSWORD http://localhost:9200/_cluster/health
 ```
 
-If TheHive is not ready, check its dependencies:
+If TheHive is not ready, inspect dependencies:
 
 ```bash
 docker compose ps cassandra minio thehive-redis elasticsearch thehive
 ```
 
-If AI reports are not generated, check:
-
-```bash
-docker logs ai-soc-automation
-```
-
-Also verify:
-
-- `LLM_API_KEY` is set.
-- `THEHIVE_API_KEY` is valid.
-- `CORTEX_API_KEY` is valid.
-- New alerts have status `New`.
-- Alerts are not already listed in `ai-soc-assistant/outputs/automation_state.json`.
-
-If Elastic alerts are not appearing in TheHive, check:
+If alerts are not synced to TheHive, inspect:
 
 ```bash
 docker logs elastic-thehive-sync
 ```
 
-Also verify that Elastic alert indices match one of:
+If AI reports are not created, verify:
 
-```text
-.siem-signals-default-*
-.alerts-security.alerts-*
-```
+- `LLM_API_KEY` is configured.
+- `THEHIVE_API_KEY` is valid.
+- `CORTEX_API_KEY` is valid.
+- TheHive alerts are still in `New` status.
+- The alert ID is not already present in `ai-soc-assistant/outputs/automation_state.json`.
+
+## Git Hygiene
+
+The repository intentionally ignores:
+
+- `.env`
+- `rapport/`
+- `prez/`
+- Python caches
+- local logs
+- generated AI reports
+- local CSV/XLSX exports
+- temporary notes and build artifacts
