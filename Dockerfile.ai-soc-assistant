@@ -1,0 +1,13 @@
+FROM python:3.11-alpine
+
+WORKDIR /app
+
+COPY ai-soc-assistant/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY ai-soc-assistant/ .
+
+RUN adduser -D -u 1000 aisoc && mkdir -p /app/outputs && chown -R aisoc:aisoc /app
+USER aisoc
+
+CMD ["python", "-u", "auto_worker.py"]

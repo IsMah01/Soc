@@ -1,0 +1,182 @@
+{
+  "name": "O365 Mass Sharing Link Creation",
+  "description": "Detection and analysis of abnormal mass sharing link creation in Microsoft 365, SharePoint, or OneDrive.",
+  "alert_type": "Cloud Security",
+  "rule_id": "custom-o365-mass-sharing-link-creation",
+  "use_case_id": "UC-O365-001",
+  "mitre_attack": [
+    {
+      "tactic": "Exfiltration",
+      "technique": "Exfiltration Over Web Service",
+      "id": "T1567"
+    },
+    {
+      "tactic": "Initial Access",
+      "technique": "Valid Accounts",
+      "id": "T1078"
+    }
+  ],
+  "objective": [
+    "Detect potential data exposure through abnormal sharing link creation",
+    "Identify compromised or misused Microsoft 365 accounts",
+    "Prioritize alerts involving sensitive files, unknown sessions or unusual source locations",
+    "Recommend containment and investigation actions without replacing analyst validation"
+  ],
+  "recommended_elastic_rule": {
+    "name": "O365 Mass Sharing Link Creation",
+    "type": "threshold",
+    "severity": "medium",
+    "risk_score": 47,
+    "interval": "5m",
+    "lookback": "10m",
+    "threshold": {
+      "field": [
+        "user.email",
+        "source.ip"
+      ],
+      "value": 25
+    },
+    "query_logic": [
+      "event.provider in SharePoint or OneDrive",
+      "event.action indicates sharing link creation",
+      "event.outcome, o365.audit.ResultStatus or http.response.status_code indicates a successful action",
+      "group by user.email and source.ip",
+      "trigger when the number of matching events is greater than or equal to 25 within 10 minutes"
+    ],
+    "required_tags": [
+      "uc-o365-001",
+      "cloud",
+      "m365",
+      "sharepoint",
+      "mass-sharing"
+    ]
+  },
+  "important_fields": [
+    "@timestamp",
+    "event.action",
+    "event.provider",
+    "event.outcome",
+    "http.request.method",
+    "http.response.status_code",
+    "user_agent.original",
+    "user.email",
+    "user.name",
+    "source.ip",
+    "source.geo.country_name",
+    "source.geo.city_name",
+    "destination.ip",
+    "cloud.account.id",
+    "o365.audit.Operation",
+    "o365.audit.Workload",
+    "o365.audit.UserId",
+    "o365.audit.ObjectId",
+    "o365.audit.ResultStatus",
+    "o365.audit.ClientIP",
+    "o365.audit.UserAgent",
+    "o365.audit.CreationTime",
+    "o365.audit.TargetUserOrGroupName",
+    "file.name",
+    "file.path",
+    "url.full",
+    "sharing.count",
+    "sharing.scope",
+    "sharing.link_type",
+    "sharing.external_recipient_count",
+    "device.name",
+    "session.id",
+    "session.status",
+    "data.sensitivity"
+  ],
+  "observable_expectations": [
+    "source.ip should be extracted as an IP observable",
+    "destination.ip should be extracted as an IP observable when present",
+    "user.email or o365.audit.UserId should be extracted as a mail observable",
+    "http.response.status_code and http.request.method should be preserved to confirm successful API activity",
+    "user_agent.original or o365.audit.UserAgent should be preserved to identify the client used",
+    "file.name, file.path or o365.audit.ObjectId should be preserved as file/object context",
+    "sharing.count should be preserved to support volume-based classification",
+    "source.geo.country_name, device.name, session.status and data.sensitivity should be available for triage context"
+  ],
+  "analysis_steps": [
+    "Confirm that the alert is related to SharePoint, OneDrive or Microsoft 365 file sharing",
+    "Confirm that the operation succeeded using event.outcome, o365.audit.ResultStatus or http.response.status_code",
+    "Check the number of sharing links created and compare it with the rule threshold",
+    "Check whether the sharing scope is anonymous, external, company-wide or internal only",
+    "Check whether sensitive, confidential or finance-related files are involved",
+    "Check the source IP, geolocation and whether they are expected for the user",
+    "Check the HTTP method, status code and user-agent/client application",
+    "Check whether the device, session or authentication context is known and valid",
+    "Check whether multiple files, folders or recipients are involved",
+    "Review recent sign-in activity for the same user",
+    "Use Cortex or MISP enrichment for source IP, domain or URL observables when available",
+    "If enrichment is missing, do not assume the IP, domain or URL is malicious",
+    "Determine whether the alert suggests accidental sharing, policy violation, suspicious activity or confirmed data exposure"
+  ],
+  "decision_logic": {
+    "normal": [
+      "Sharing volume is below or close to the expected threshold for the user's role",
+      "Sharing is internal only or matches an approved business process",
+      "Known device and valid session",
+      "Expected source location",
+      "No sensitive files or external exposure are involved",
+      "No suspicious enrichment result is present"
+    ],
+    "suspicious": [
+      "Sharing volume is clearly above normal but exposure is not confirmed",
+      "Unknown or unclear device context",
+      "Unusual source IP or geolocation",
+      "Sensitive file names or labels are present but external access is not confirmed",
+      "External or anonymous sharing is suspected but recipient scope is incomplete",
+      "No confirmed malicious indicator is available"
+    ],
+    "malicious": [
+      "Very high number of sharing links created in a short time window",
+      "Sensitive or confidential files are confirmed as externally exposed",
+      "Anonymous or external links are created for sensitive content",
+      "Unknown device or suspicious session combined with unusual source location",
+      "Multiple countries, impossible travel or clear account compromise evidence",
+      "Confirmed malicious IP, anonymized infrastructure or known attacker infrastructure",
+      "Evidence shows unauthorized data exposure or post-compromise activity"
+    ]
+  },
+  "response_actions": {
+    "normal": [
+      "Close the alert as benign after documenting the business justification",
+      "Keep the event for audit trail",
+      "No immediate containment required"
+    ],
+    "suspicious": [
+      "Keep or create a SOC investigation ticket",
+      "Validate the activity with the user, manager or data owner",
+      "Review recent Microsoft 365 sign-in activity for the user",
+      "Check the list of shared files, recipients and link scopes",
+      "Run enrichment on source IP, domain and URL observables when available",
+      "Monitor the user account for repeated sharing or unusual sign-in activity",
+      "Recommend removal of unnecessary external links if the business need is not confirmed"
+    ],
+    "malicious": [
+      "Disable or suspend the user account if compromise is likely",
+      "Force password reset and MFA re-authentication",
+      "Revoke active Microsoft 365 sessions and refresh tokens",
+      "Remove suspicious sharing links and external permissions",
+      "Identify exposed files, recipients and download activity",
+      "Preserve audit logs and investigation evidence",
+      "Investigate mailbox, OneDrive, SharePoint and lateral activity",
+      "Notify SOC, data owner and Incident Response",
+      "Escalate as a data exposure incident"
+    ]
+  },
+  "false_positive_considerations": [
+    "Bulk collaboration during a legitimate project",
+    "Migration or reorganization of SharePoint libraries",
+    "Approved sharing by HR, finance, legal or project teams",
+    "Service account or automation creating expected sharing links",
+    "Repeated edits to the same shared object counted as multiple events"
+  ],
+  "limitations": [
+    "The alert may not include the complete list of recipients or link scopes",
+    "The rule detects abnormal sharing volume but does not prove data download",
+    "A missing enrichment result must not be interpreted as benign activity",
+    "User role and business justification often require human validation"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "~81924152",
+  "title": "SQL Injection Detection",
+  "severity": "HIGH",
+  "source": "Elastic Security",
+  "status": "New",
+  "description": "SQL injection attempt detected against the login endpoint. The request contains a suspicious SQL payload and the user-agent indicates possible sqlmap activity.",
+  "raw_data": {
+    "@timestamp": "2026-04-30T14:10:00Z",
+    "client.ip": "185.220.101.45",
+    "source.ip": "185.220.101.45",
+    "url.path": "/login",
+    "url.original": "/login?id=1' OR '1'='1",
+    "http.response.status_code": 200,
+    "user_agent.name": "sqlmap",
+    "source.geo.country_iso_code": "NL",
+    "event.action": "sql_injection_attempt",
+    "event.provider": "cloudflare"
+  }
+}

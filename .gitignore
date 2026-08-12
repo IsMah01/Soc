@@ -1,3 +1,58 @@
 thehive/config/application.conf.backup
 thehive/config/misp-config*.json
 thehive/config/test-connection.sh
+
+# Local secrets and environment files
+.env
+*.env
+!.env.example
+!*.env.example
+
+# Python cache and virtual environments
+__pycache__/
+*/__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Generated reports, presentations, and academic deliverables
+rapport/
+prez/
+rapport/build/
+prez/build/
+
+# AI generated runtime outputs
+ai-soc-assistant/outputs/*
+!ai-soc-assistant/outputs/README.md
+!ai-soc-assistant/outputs/.gitkeep
+
+# Local logs and temporary notes
+log
+logaudit.txt
+*.log
+forti.txt
+playbooks templates.txt
+
+# Local feed exports and spreadsheets
+audit_feeds*.csv
+audit_feeds*.xlsx
+mispiocss/
+
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc

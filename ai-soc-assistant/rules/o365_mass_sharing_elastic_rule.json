@@ -1,0 +1,142 @@
+{
+  "rule_id": "custom-o365-mass-sharing-link-creation",
+  "name": "O365 Mass Sharing Link Creation",
+  "description": "Detects abnormal mass creation of Microsoft 365 SharePoint or OneDrive sharing links by the same user from the same source IP.",
+  "type": "threshold",
+  "enabled": true,
+  "severity": "medium",
+  "risk_score": 47,
+  "interval": "5m",
+  "from": "now-10m",
+  "index": [
+    "logs-o365-*",
+    "logs-m365-*",
+    "filebeat-*",
+    "logs-custom-*"
+  ],
+  "language": "kuery",
+  "query": "event.provider:(SharePoint or OneDrive) and event.action:(SharingLinkCreated or AnonymousLinkCreated or SecureLinkCreated or CompanyLinkCreated or AddedToSharingLink or AddedToSecureLink) and (event.outcome:success or o365.audit.ResultStatus:Succeeded or http.response.status_code:200) and user.email:* and source.ip:* and not source.ip:(10.0.0.0/8 or 172.16.0.0/12 or 192.168.0.0/16) and not url.domain:(organization.sharepoint.com or organization-my.sharepoint.com or *.trusted-partner.example)",
+  "threshold": {
+    "field": [
+      "user.email",
+      "source.ip"
+    ],
+    "value": 25
+  },
+  "tags": [
+    "uc-o365-001",
+    "cloud",
+    "m365",
+    "sharepoint",
+    "onedrive",
+    "mass-sharing"
+  ],
+  "query_exception_examples": {
+    "source_ip_ranges": [
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16"
+    ],
+    "domains": [
+      "organization.sharepoint.com",
+      "organization-my.sharepoint.com",
+      "*.trusted-partner.example"
+    ],
+    "guidance": "These exclusions are embedded directly in the KQL query. Use them only for validated corporate networks, approved tenants, trusted automation or documented business workflows. Avoid excluding broad external domains without SOC approval."
+  },
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": {
+        "id": "TA0010",
+        "name": "Exfiltration",
+        "reference": "https://attack.mitre.org/tactics/TA0010/"
+      },
+      "technique": [
+        {
+          "id": "T1567",
+          "name": "Exfiltration Over Web Service",
+          "reference": "https://attack.mitre.org/techniques/T1567/",
+          "subtechnique": [
+            {
+              "id": "T1567.002",
+              "name": "Exfiltration to Cloud Storage",
+              "reference": "https://attack.mitre.org/techniques/T1567/002/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": {
+        "id": "TA0001",
+        "name": "Initial Access",
+        "reference": "https://attack.mitre.org/tactics/TA0001/"
+      },
+      "technique": [
+        {
+          "id": "T1078",
+          "name": "Valid Accounts",
+          "reference": "https://attack.mitre.org/techniques/T1078/"
+        }
+      ]
+    }
+  ],
+  "required_fields": [
+    "@timestamp",
+    "event.provider",
+    "event.action",
+    "event.outcome",
+    "user.email",
+    "source.ip",
+    "http.response.status_code"
+  ],
+  "recommended_context_fields": [
+    "source.geo.country_name",
+    "destination.ip",
+    "http.request.method",
+    "http.response.status_code",
+    "user_agent.original",
+    "o365.audit.Operation",
+    "o365.audit.Workload",
+    "o365.audit.ResultStatus",
+    "o365.audit.ClientIP",
+    "o365.audit.UserAgent",
+    "o365.audit.ObjectId",
+    "file.name",
+    "file.path",
+    "url.full",
+    "sharing.count",
+    "sharing.scope",
+    "sharing.link_type",
+    "sharing.external_recipient_count",
+    "device.name",
+    "session.status",
+    "data.sensitivity"
+  ],
+  "tuning_guidance": {
+    "starting_threshold": "25 sharing-link events by the same user and source.ip in 10 minutes",
+    "raise_threshold_when": [
+      "Large collaboration teams create many expected links",
+      "Migration or automation jobs produce repeated sharing events"
+    ],
+    "lower_threshold_when": [
+      "Anonymous or external links are included",
+      "Sensitive labels are present",
+      "The user is privileged or belongs to a sensitive department"
+    ],
+    "exclude_when": [
+      "Known migration service accounts",
+      "Approved automation accounts",
+      "Internal-only bulk collaboration with a documented business reason"
+    ]
+  },
+  "expected_alert_mapping": {
+    "signal.rule.id": "custom-o365-mass-sharing-link-creation",
+    "signal.rule.name": "O365 Mass Sharing Link Creation",
+    "tags": [
+      "uc-o365-001"
+    ]
+  }
+}

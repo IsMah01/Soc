@@ -1,0 +1,41 @@
+{
+  "rule_id": "custom-o365-mass-sharing-link-creation",
+  "name": "O365 Mass Sharing Link Creation - Before Tuning",
+  "description": "Initial broad rule for SharePoint sharing activity. This version is intentionally noisy and incomplete for before-tuning documentation.",
+  "type": "threshold",
+  "enabled": true,
+  "severity": "low",
+  "risk_score": 21,
+  "interval": "5m",
+  "from": "now-5m",
+  "index": [
+    "logs-*",
+    "filebeat-*"
+  ],
+  "language": "kuery",
+  "query": "event.provider: SharePoint",
+  "threshold": {
+    "field": [
+      "user.email"
+    ],
+    "value": 1
+  },
+  "tags": [
+    "cloud",
+    "sharepoint"
+  ],
+  "required_fields": [
+    "@timestamp",
+    "event.provider",
+    "user.email"
+  ],
+  "known_issues": [
+    "The query is too broad and does not specifically target sharing link creation",
+    "The threshold is too low and can trigger on normal SharePoint activity",
+    "The rule groups only by user.email and ignores source.ip",
+    "The rule does not include MITRE ATT&CK mapping",
+    "The rule does not include the functional use-case tag uc-o365-001",
+    "The severity and risk score are too low for potential external data exposure",
+    "The time window is too short to represent abnormal mass sharing behavior"
+  ]
+}

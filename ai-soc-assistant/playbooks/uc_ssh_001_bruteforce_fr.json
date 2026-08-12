@@ -1,0 +1,76 @@
+{
+  "id": "PB-SSH-001",
+  "name": "Procédure SOC - Brute force SSH",
+  "use_case_id": "UC-SSH-001",
+  "alert_type": "Attaque d'authentification",
+  "description": "Procédure d'investigation pour une alerte indiquant des tentatives répétées d'authentification SSH échouées depuis une même adresse IP source.",
+  "phases": {
+    "alert_definition": {
+      "title": "Définition de l'alerte",
+      "content": [
+        "L'alerte détecte des tentatives répétées d'authentification SSH échouées depuis une même adresse IP source vers un serveur exposant le service SSH.",
+        "Le risque principal est la compromission d'un compte système ou administrateur.",
+        "Le risque devient plus élevé si une connexion SSH réussie apparaît après une série d'échecs."
+      ]
+    },
+    "triage_phase": {
+      "title": "Phase de qualification",
+      "content": [
+        "Compter le nombre de tentatives échouées par source.ip.",
+        "Identifier les adresses IP dépassant le seuil défini dans la règle Elastic.",
+        "Vérifier si une même source cible plusieurs serveurs ou plusieurs comptes.",
+        "Analyser les champs clés : horodatage, IP source, IP destination, utilisateur, résultat et hôte ciblé."
+      ]
+    },
+    "analysis_phase": {
+      "title": "Phase d'analyse",
+      "content": [
+        "Analyser la fréquence des tentatives : rafale courte, brute force lent ou activité isolée.",
+        "Identifier le nombre de comptes ciblés : compte unique, comptes administrateurs ou liste d'utilisateurs.",
+        "Vérifier la réputation de l'adresse IP source via MISP, Cortex, VirusTotal ou AbuseIPDB lorsque les résultats sont disponibles.",
+        "Rechercher un événement login_success après les échecs.",
+        "Corréler avec les journaux système, pare-feu, EDR ou IDS disponibles."
+      ]
+    },
+    "decision_logic": {
+      "title": "Logique de décision",
+      "low_risk": [
+        "Faible volume d'échecs.",
+        "Absence de récurrence significative.",
+        "Aucun succès d'authentification observé."
+      ],
+      "suspicious": [
+        "Tentatives répétées.",
+        "Ciblage de comptes sensibles.",
+        "Réputation incertaine de l'adresse IP source."
+      ],
+      "malicious": [
+        "Volume élevé.",
+        "Succès SSH après les échecs.",
+        "Source connue comme malveillante.",
+        "Signes post-authentification anormaux."
+      ]
+    },
+    "response_actions": {
+      "title": "Actions de réponse",
+      "low_risk": [
+        "Documenter l'activité.",
+        "Conserver les observables pour corrélation future.",
+        "Clôturer l'alerte si aucune récurrence n'est observée."
+      ],
+      "suspicious": [
+        "Maintenir le ticket ouvert pour investigation SOC.",
+        "Surveiller le compte et l'hôte ciblés.",
+        "Revoir les journaux SSH sur les dernières 24 à 48 heures.",
+        "Compléter l'enrichissement de l'adresse IP source si nécessaire."
+      ],
+      "malicious": [
+        "Bloquer l'adresse IP source après validation.",
+        "Réinitialiser ou désactiver le compte ciblé si une compromission est suspectée.",
+        "Restreindre l'accès SSH aux sources autorisées.",
+        "Vérifier l'historique des commandes, les sessions actives et les indicateurs de persistance.",
+        "Escalader vers l'équipe SOC ou l'équipe de réponse aux incidents."
+      ]
+    }
+  }
+}

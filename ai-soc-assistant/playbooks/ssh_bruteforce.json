@@ -1,0 +1,77 @@
+{
+  "name": "SSH Brute Force Detection",
+  "description": "Detection and analysis of repeated SSH authentication failures that may indicate brute force, password spraying, or automated credential guessing.",
+  "alert_type": "Authentication Attack",
+  "objective": [
+    "Identify repeated SSH authentication failures from the same source",
+    "Determine whether the activity is low-risk scanning, suspicious brute force, or malicious compromise attempt",
+    "Recommend appropriate SOC response actions"
+  ],
+  "important_fields": [
+    "@timestamp",
+    "source.ip",
+    "source.geo.country_name",
+    "destination.ip",
+    "destination.port",
+    "host.name",
+    "user.name",
+    "event.action",
+    "event.outcome",
+    "process.name",
+    "message"
+  ],
+  "analysis_steps": [
+    "Check the number of failed SSH authentication attempts and the time window",
+    "Identify the source IP, destination host, destination port, and targeted user account",
+    "Check whether the targeted account is privileged, such as root or an administrator account",
+    "Check whether multiple accounts or multiple hosts are targeted",
+    "Search for any successful SSH authentication after the failed attempts",
+    "Review enrichment results for the source IP when Cortex or MISP reports are available",
+    "Determine whether the behavior looks like opportunistic Internet scanning, suspicious brute force, or a confirmed compromise attempt",
+    "If enrichment is missing, do not assume that the source IP is malicious"
+  ],
+  "decision_logic": {
+    "low_risk": [
+      "Low number of failed attempts",
+      "No successful authentication after the failures",
+      "No privileged account targeted",
+      "No negative enrichment result",
+      "Activity appears isolated or opportunistic"
+    ],
+    "suspicious": [
+      "Repeated failed SSH attempts in a short time window",
+      "Privileged or sensitive account targeted",
+      "Same source IP is recurrent or targets multiple users",
+      "Enrichment is missing or inconclusive",
+      "No successful authentication is confirmed"
+    ],
+    "malicious": [
+      "High-volume or clearly automated brute force behavior",
+      "Successful SSH login after repeated failures",
+      "Source IP is confirmed malicious by enrichment",
+      "Administrative account is targeted or compromised",
+      "Post-authentication activity indicates compromise"
+    ]
+  },
+  "response_actions": {
+    "low_risk": [
+      "Document the activity as low-risk scanning",
+      "Keep observables for future correlation",
+      "Close the alert if no recurrence is observed"
+    ],
+    "suspicious": [
+      "Keep the alert open for SOC investigation",
+      "Review SSH authentication logs over the last 24 to 48 hours",
+      "Check for successful login events from the same source IP",
+      "Enrich the source IP with available Cortex or MISP sources",
+      "Monitor the targeted account and host for recurrence"
+    ],
+    "malicious": [
+      "Block the source IP at firewall, WAF, or security group level",
+      "Reset or disable the targeted account if compromise is suspected",
+      "Restrict SSH access to authorized sources",
+      "Review command history, active sessions, and persistence indicators on the host",
+      "Escalate to SOC or Incident Response for full investigation"
+    ]
+  }
+}

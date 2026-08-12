@@ -29,7 +29,6 @@ volumes:
   misp-core-certs:
   misp-core-gnupg:
   elastic-thehive-sync-data:
-
 services:
   # ===========================================
   # ELASTICSEARCH
@@ -399,6 +398,38 @@ services:
         max-file: "3"
     stdin_open: false
     tty: false
+
+  # ===========================================
+  # AI SOC AUTOMATION
+  # ===========================================
+  ai-soc-automation:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai-soc-assistant
+    container_name: ai-soc-automation
+    hostname: ai-soc-automation
+    env_file:
+      - .env
+    environment:
+      - THEHIVE_URL=http://thehive:9000
+      - CORTEX_URL=http://cortex:9001
+      - OUTPUT_DIR=/app/outputs
+      - AUTO_STATE_FILE=/app/outputs/automation_state.json
+    volumes:
+      - ./ai-soc-assistant/outputs:/app/outputs
+    networks:
+      - soc-network
+    depends_on:
+      thehive:
+        condition: service_healthy
+      cortex:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ===========================================
   # portainer

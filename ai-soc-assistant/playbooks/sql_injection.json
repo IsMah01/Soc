@@ -1,0 +1,80 @@
+{
+  "name": "SQL Injection Detection",
+  "description": "Detection and analysis of SQL injection attempts that may bypass WAF protections.",
+  "alert_type": "Web Attack",
+  "objective": [
+    "Identify possible SQL injection activity",
+    "Determine whether the activity is low-risk scanning, suspicious probing, or malicious exploitation",
+    "Recommend appropriate SOC response actions"
+  ],
+  "important_fields": [
+    "@timestamp",
+    "client.ip",
+    "source.ip",
+    "url.original",
+    "url.path",
+    "url.domain",
+    "http.response.status_code",
+    "user_agent.name",
+    "event.action",
+    "event.provider"
+  ],
+  "analysis_steps": [
+    "Check if the URL contains SQL injection patterns such as quotes, OR conditions, UNION SELECT, comments, or encoded payloads",
+    "Check whether the targeted endpoint is sensitive such as /login, /api, /admin, or authentication-related endpoints",
+    "Check the user-agent for automation tools such as sqlmap, scripts, curl, python-requests, or unknown user agents",
+    "Check the HTTP response status code for possible backend interaction such as 200, 500, or abnormal responses",
+    "Check whether the alert indicates repeated attempts or payload variation",
+    "Determine whether there is evidence of successful exploitation or data exposure",
+    "If enrichment is missing, do not assume that the source IP is malicious"
+  ],
+  "decision_logic": {
+    "low_risk": [
+      "Very low number of SQL injection attempts",
+      "No repetition or automation indicators",
+      "No sensitive endpoint targeted",
+      "No abnormal server response",
+      "No evidence of exploitation"
+    ],
+    "suspicious": [
+      "SQL injection payload detected",
+      "Sensitive endpoint targeted",
+      "Automation indicator observed",
+      "HTTP 200 or 500 response observed but no confirmed exploitation",
+      "Repeated attempts or payload variation without confirmed compromise"
+    ],
+    "malicious": [
+      "High-volume or clearly automated SQL injection attempts",
+      "Clear WAF bypass behavior",
+      "Sensitive endpoints targeted repeatedly",
+      "Evidence of backend database interaction",
+      "Database error messages or signs of successful query execution",
+      "Confirmed data exposure or unauthorized access"
+    ]
+  },
+  "response_actions": {
+    "low_risk": [
+      "Record activity as low-risk scanning",
+      "Keep logs for correlation",
+      "No immediate containment required"
+    ],
+    "suspicious": [
+      "Create a SOC investigation ticket",
+      "Review web server and application logs",
+      "Check if similar attempts were observed from the same source IP",
+      "Perform IP reputation enrichment if needed",
+      "Monitor attacker activity for 24 to 48 hours",
+      "Escalate if activity increases or exploitation indicators appear"
+    ],
+    "malicious": [
+      "Block the attacker IP at WAF or firewall level",
+      "Update or tune WAF SQL injection rules",
+      "Restrict or protect targeted endpoints",
+      "Analyze database logs for suspicious queries",
+      "Review application logs for exploitation evidence",
+      "Assess whether data exfiltration occurred",
+      "Escalate to SOC and Incident Response teams",
+      "Perform root cause analysis and remediation"
+    ]
+  }
+}
