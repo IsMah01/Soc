@@ -30,7 +30,7 @@ CONFIG = {
 
     # IMPORTANT: /api/v1/alert (pas /api/alert)
     "thehive_url": os.getenv("THEHIVE_URL", "http://thehive:9000/api/alert"),
-    "thehive_key": os.getenv("THEHIVE_API_KEY", "<REMOVED_THEHIVE_API_KEY>"),
+    "thehive_key": os.getenv("THEHIVE_API_KEY", ""),
     "thehive_org": os.getenv("THEHIVE_ORG", "Soc"),
 
     # Index Elastic

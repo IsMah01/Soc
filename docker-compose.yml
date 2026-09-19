@@ -81,9 +81,9 @@ services:
       - SERVERNAME=kibana
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=<REMOVED_DEFAULT_PASSWORD>
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - XPACK_SECURITY_ENABLED=true
-      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=<REMOVED_KIBANA_ENCRYPTION_KEY>
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
     volumes:
       - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     ports:
@@ -210,9 +210,9 @@ services:
       - TZ=${TZ}
       - TH_SECRET=${THEHIVE_SECRET}
       - ES_USERNAME=thehive_user
-      - ES_PASSWORD=<REMOVED_DEFAULT_PASSWORD>
-      - MINIO_USER=admin
-      - MINIO_PASSWORD=<REMOVED_DEFAULT_PASSWORD>
+      - ES_PASSWORD=${ELASTIC_PASSWORD}
+      - MINIO_USER=${MINIO_ROOT_USER}
+      - MINIO_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       - ./thehive/config/application.conf:/etc/thehive/application.conf:ro
       - thehive-data:/opt/thehive/data
@@ -246,6 +246,8 @@ services:
     container_name: cortex
     environment:
       - job_directory=/var/lib/cortex-jobs
+      - CORTEX_SECRET=${CORTEX_SECRET}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
     volumes:
       - ./cortex/config/application.conf:/etc/cortex/application.conf:ro
       - cortex-data:/var/lib/cortex
@@ -322,7 +324,7 @@ services:
       - SHUFFLE_OPENSEARCH_URL=http://shuffle-opensearch:9200
       - SHUFFLE_OPENSEARCH_USERNAME=admin
       - SHUFFLE_OPENSEARCH_PASSWORD=${SHUFFLE_OPENSEARCH_PASSWORD}
-      - SHUFFLE_ENCRYPTION_MODIFIER=your-random-secret-string
+      - SHUFFLE_ENCRYPTION_MODIFIER=${SHUFFLE_ENCRYPTION_MODIFIER}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - shuffle-apps:/shuffle-apps
@@ -371,9 +373,9 @@ services:
     environment:
       - ELASTIC_HOST=http://elasticsearch:9200
       - ELASTIC_USER=elastic
-      - ELASTIC_PASSWORD=<REMOVED_DEFAULT_PASSWORD>
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - THEHIVE_URL=http://thehive:9000/api/v1/alert
-      - THEHIVE_API_KEY=<REMOVED_THEHIVE_API_KEY>
+      - THEHIVE_API_KEY=${THEHIVE_API_KEY}
       - THEHIVE_ORG=Soc
     volumes:
       - elastic-thehive-sync-data:/data
@@ -386,7 +388,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; r=requests.get('http://elasticsearch:9200', auth=('elastic','<REMOVED_DEFAULT_PASSWORD>'), timeout=5); print(r.status_code)"]
+      test: ["CMD-SHELL", "python -c \"import os,requests; r=requests.get('http://elasticsearch:9200', auth=('elastic',os.environ['ELASTIC_PASSWORD']), timeout=5); print(r.status_code)\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -460,14 +462,14 @@ services:
     environment:
       - MYSQL_DATABASE=misp
       - MYSQL_USER=misp
-      - MYSQL_PASSWORD=<REMOVED_MISP_PASSWORD>
-      - MYSQL_ROOT_PASSWORD=<REMOVED_ROOT_PASSWORD>
+      - MYSQL_PASSWORD=${MISP_DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MISP_DB_ROOT_PASSWORD}
     volumes:
       - misp-db-data:/var/lib/mysql
     networks:
       - soc-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p<REMOVED_ROOT_PASSWORD>"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$${MYSQL_ROOT_PASSWORD}\""]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -477,13 +479,13 @@ services:
     image: redis:7-alpine
     container_name: misp-redis
     hostname: redis 
-    command: redis-server --requirepass <REMOVED_REDIS_PASSWORD>
+    command: redis-server --requirepass ${MISP_REDIS_PASSWORD}
     volumes:
       - misp-redis-data:/data
     networks:
       - soc-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "<REMOVED_REDIS_PASSWORD>", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${MISP_REDIS_PASSWORD}\" ping"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -494,6 +496,7 @@ services:
     container_name: misp-modules
     environment:
       - REDIS_BACKEND=misp-redis
+      - MISP_REDIS_PASSWORD=${MISP_REDIS_PASSWORD}
     networks:
       - soc-network
     depends_on:
@@ -506,7 +509,7 @@ services:
     container_name: misp-core
     environment:
       - MISP_ADMIN_EMAIL=admin@admin.test
-      - MISP_ADMIN_PASSPHRASE=admin
+      - MISP_ADMIN_PASSPHRASE=${MISP_ADMIN_PASSPHRASE}
       - MISP_BASEURL=https://localhost:8443
       - MISP_EXTERNAL_BASEURL=https://localhost:8443
       - MISP_RESTCLIENT_BASEURL=https://localhost:8443
@@ -514,15 +517,15 @@ services:
       - MYSQL_PORT=3306
       - MYSQL_DATABASE=misp
       - MYSQL_USER=misp
-      - MYSQL_PASSWORD=<REMOVED_MISP_PASSWORD>
+      - MYSQL_PASSWORD=${MISP_DB_PASSWORD}
       # CRITICAL: Change from 'redis' to 'misp-redis'
       - REDIS_FQDN=misp-redis
       - REDIS_PORT=6379
-      - REDIS_PASSWORD=<REMOVED_REDIS_PASSWORD>
+      - REDIS_PASSWORD=${MISP_REDIS_PASSWORD}
       # These ensure Redis settings propagate to all config sections
       - MISP_REDIS_HOST=misp-redis
       - MISP_REDIS_PORT=6379
-      - MISP_REDIS_PASSWORD=<REMOVED_REDIS_PASSWORD>
+      - MISP_REDIS_PASSWORD=${MISP_REDIS_PASSWORD}
       - PLUGIN_ZEROMQ_REDIS_HOST=misp-redis
       - SIMPLEBACKGROUNDJOBS_REDIS_HOST=misp-redis
       - MISP_MODULES_FQDN=http://misp-modules
