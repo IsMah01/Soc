@@ -133,7 +133,7 @@ contournement possible
 --------------------------------------------------------------------------------------------------
 
 
-🏆 TEMPLATE FINAL – USE CASE SOC (VERSION GÉNÉRIQUE)
+🏆 MODÈLE GÉNÉRIQUE – USE CASE SOC
 📄 1. Identification
 ID : UC-XXX
 Nom : (ex: SSH Brute Force Detection)
@@ -154,12 +154,12 @@ Détecter des tentatives de brute force afin de prévenir la compromission de co
 
 👉 C’est CE QUI FAIT LA DIFFÉRENCE
 
-Pourquoi ce use case est critique pour le retail ?
-Quel système est impacté ? (POS, serveur, admin…)
+Pourquoi ce use case est-il critique pour l'organisation ?
+Quel système est impacté ? (poste utilisateur, serveur, application, compte privilégié…)
 
 👉 Exemple :
 
-Une compromission peut impacter les systèmes de caisse (POS) et exposer des données sensibles clients.
+Une compromission peut perturber les services de l'organisation et exposer des données sensibles.
 
 🧪 4. Hypothèse de détection
 
@@ -235,7 +235,7 @@ Création incident dans TheHive
 Notification SOC
 🧪 13. Simulation / Test
 
-👉 IMPORTANT POUR LA VALIDATION
+👉 Important pour valider le use case
 
 Outil utilisé : hydra / nmap / script
 Commande :

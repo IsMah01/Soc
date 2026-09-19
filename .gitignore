@@ -37,6 +37,11 @@ logaudit.txt
 *.log
 forti.txt
 playbooks templates.txt
+exec.txt
+
+# Generated/local MISP configuration containing credentials
+misp/config/config.php
+misp/config/database.php
 
 # Local feed exports and spreadsheets
 audit_feeds*.csv
