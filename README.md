@@ -23,23 +23,9 @@ Modern SOC tooling is often difficult to evaluate as a complete workflow. This p
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    A[Logs and simulated events] --> B[Logstash]
-    A --> C[Elasticsearch]
-    B --> C
-    C --> D[Kibana detection rules]
-    D --> E[Elastic alerts]
-    E --> F[Elastic-TheHive sync]
-    F --> G[TheHive]
-    G --> H[Cortex analyzers]
-    H --> I[MISP and external enrichment]
-    G --> J[AI SOC assistant]
-    H --> J
-    J --> K[Investigation report]
-    K --> G
-    G -. automation .-> L[Shuffle]
-```
+![SOC Lab Platform architecture](docs/assets/architecture.png)
+
+The diagram shows the complete path from telemetry collection and Elastic detection to TheHive case management, Cortex/MISP enrichment, AI-assisted reporting, and analyst validation.
 
 ### Investigation flow
 
