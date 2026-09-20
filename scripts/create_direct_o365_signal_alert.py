@@ -64,13 +64,13 @@ def build_alert(run_id: str, malicious_email: bool = False) -> dict:
             },
             "reason": (
                 "Direct O365 alert: 30 external anonymous SharePoint sharing links "
-                f"created by {user_email} from 45.155.91.12."
+                f"created by {user_email} from 198.51.100.45."
             ),
             "threshold_result": {
                 "count": 30,
                 "terms": [
                     {"field": "user.email", "value": user_email},
-                    {"field": "source.ip", "value": "45.155.91.12"},
+                    {"field": "source.ip", "value": "198.51.100.45"},
                 ],
             },
         },
@@ -87,20 +87,20 @@ def build_alert(run_id: str, malicious_email: bool = False) -> dict:
             "id": user_email,
         },
         "source": {
-            "ip": "45.155.91.12",
+            "ip": "198.51.100.45",
             "geo": {
                 "country_name": "Netherlands",
                 "city_name": "Amsterdam",
             },
         },
         "client": {
-            "ip": "45.155.91.12",
+            "ip": "198.51.100.45",
         },
         "destination": {
-            "ip": "20.190.160.10",
+            "ip": "192.0.2.10",
         },
         "related": {
-            "ip": ["45.155.91.12", "20.190.160.10"],
+            "ip": ["198.51.100.45", "192.0.2.10"],
         },
         "user_agent": {
             "original": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Office365Shell/16.0",
@@ -112,7 +112,7 @@ def build_alert(run_id: str, malicious_email: bool = False) -> dict:
                 "UserId": user_email,
                 "ObjectId": url_full.replace("%20", " "),
                 "ResultStatus": "Succeeded",
-                "ClientIP": "45.155.91.12",
+                "ClientIP": "198.51.100.45",
                 "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Office365Shell/16.0",
                 "CreationTime": now,
                 "TargetUserOrGroupName": external_recipient,

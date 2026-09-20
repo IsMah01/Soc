@@ -39,14 +39,14 @@ def build_event(ts: datetime, sequence: int, run_id: str) -> dict:
             "name": "employee",
         },
         "source": {
-            "ip": "45.155.91.12",
+            "ip": "198.51.100.45",
             "geo": {
                 "country_name": "Netherlands",
                 "city_name": "Amsterdam",
             },
         },
         "destination": {
-            "ip": "20.190.160.10",
+            "ip": "192.0.2.10",
         },
         "user_agent": {
             "original": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Office365Shell/16.0",
@@ -58,7 +58,7 @@ def build_event(ts: datetime, sequence: int, run_id: str) -> dict:
                 "UserId": "employee@example.com",
                 "ObjectId": url_full.replace("%20", " "),
                 "ResultStatus": "Succeeded",
-                "ClientIP": "45.155.91.12",
+                "ClientIP": "198.51.100.45",
                 "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Office365Shell/16.0",
                 "CreationTime": iso_z(ts),
                 "TargetUserOrGroupName": "external.partner@example.net",
